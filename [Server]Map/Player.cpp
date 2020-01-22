@@ -23,7 +23,7 @@
 #include "Object.h"
 #include "ServerSystem.h"
 #endif
- 
+
 #include "..\[CC]Header\GameResourceManager.h"
 #include "Player.h"
 #include "PartyManager.h"
@@ -85,15 +85,14 @@
 #include "Trigger\Manager.h"
 #include "Trigger\Message.h"
 #include "PCRoomManager.h"
+
 #include "Dungeon\DungeonMgr.h"
 #include "..\hseos\ResidentRegist\SHResidentRegistManager.h"
 #include "..\[CC]ServerModule\Console.h"
 #include "ServerTable.h"
 
-
 // --- skr 12/01/2020
 #include "Relife.h"
-
 
 #define INSERTLOG_TIME			600000 // 10 min
 #define INSERTLOG_TIME_CHINA	1800000 // 30 min
@@ -117,7 +116,7 @@ m_SkillTree(new cSkillTree)
 	mTargetPosX = 0;
 	mTargetPosZ = 0;
 
-	// 071128 LYW --- Player : HPMP ÃÃ»Â¿Ã«.
+	// 071128 LYW --- Player : HPMP 적용.
 	m_byHP_Point = 0;
 	m_byMP_Point = 0;
 
@@ -129,6 +128,10 @@ m_SkillTree(new cSkillTree)
 	m_dweFamilyRewardExp = 0;
 	m_byCurFamilyMemCnt	 = 0;
 	m_dwCurrentResurrectIndex = 0;
+// --- skr : relife
+ 	RelifeON = FALSE;
+	RelifeTimer = 0;
+  RelifeStartTime = 0;
 }
 
 CPlayer::~CPlayer()
@@ -145,13 +148,13 @@ void CPlayer::InitClearData()
 
 	m_ItemContainer.SetInit(eItemTable_Weared,		TP_WEAR_START,			SLOT_WEAR_NUM,			&m_WearSlot);
 	m_ItemContainer.SetInit(eItemTable_Storage,		TP_STORAGE_START,		SLOT_STORAGE_NUM,		&m_StorageSlot);
-	m_ItemContainer.SetInit(eItemTable_Shop,		TP_SHOPITEM_START,		SLOT_SHOPITEM_NUM,		&m_ShopItemSlot);	
+	m_ItemContainer.SetInit(eItemTable_Shop,		TP_SHOPITEM_START,		SLOT_SHOPITEM_NUM,		&m_ShopItemSlot);
 	memset(&m_HeroCharacterInfo,0,sizeof(CHARACTER_TOTALINFO));
 	memset(&m_HeroInfo,0,sizeof(HERO_TOTALINFO));
-	// 090701 LUJ, Â¸ÃÂ¸Ã°Â¸Â®ÃÂ®ÃÃ Â»Ã½Â¼ÂºÃÃ/Â¼ÃÂ¸ÃªÃÃÂ¸Â¦ ÃÂ£ÃÃ¢ÃÃÃÃ¶ Â¾ÃÂ±Ã¢ Â¶Â§Â¹Â®Â¿Â¡ Init()Â¿Â¡Â¼Â­ ÃÃÂ±Ã¢ÃÂ­ÃÃÃÃ¶ Â¾ÃÃÂ» Â°Ã¦Â¿Ã¬, ÃÃÂ±Ã¢ÃÂ­Â°Â¡
-	//		ÃÃÂ·Ã¯ÃÃ¶ÃÃ¶ Â¾ÃÂ´ÃÂ´Ã. purseÂ´Ã Â±Ã ÂµÂ¿Â¾Ã ÃÃÂ±Ã¢ÃÂ­Â¸Â¦ ÃÃÃÃ¶ Â¾ÃÂ¾ÃÃÂ¸Â¹ÃÂ·Ã ÃÃÂ·Â¹ÃÃÂ¾Ã®Â°Â¡ ÃÂ¢Â¼ÃÃÂ» ÃÃÃÂ¦ÃÃÂµÂµ ÃÂ¤ÂºÂ¸(Â¾Â²Â·Â¹Â±Ã¢Â°Âª)Â¸Â¦
-	//		Â°Â®Â°Ã­ ÃÃÂ´Ã. ÃÃÂ¸Â¦ ÃÃÂ¿Ã«ÃÃÂ¼Â­ DBÂ¿Â¡Â¼Â­ Â°ÂªÃÂ» Â°Â¡ÃÂ®Â¿ÃÂ±Ã¢ ÃÃ¼Â¿Â¡ ÂºÃ¼Â¸Â£Â°Ã Â¸Ã ÃÃÂµÂ¿ÃÂ» Â¹ÃÂºÂ¹ÃÃ Â°Ã¦Â¿Ã¬, Â¾Â²Â·Â¹Â±Ã¢Â°ÂªÃÂ» DBÂ¿Â¡ ÃÃºÃÃ¥ÃÃÂ°ÃÂµÃÂ´Ã.
-	//		ÃÃÂ¸Â¦ Â¸Â·Â±Ã¢ ÃÂ§ÃÃ Â°Â´ÃÂ¼ ÃÃÂ±Ã¢ÃÂ­ Â¼Ã¸Â°Â£Â¿Â¡ Â°ÂªÂµÂµ ÃÃÂ±Ã¢ÃÂ­Â½ÃÃÂ°ÂµÂµÂ·Ã ÃÃÂ´Ã
+	// 090701 LUJ, 메모리풀이 생성자/소멸자를 호출하지 않기 때문에 Init()에서 초기화하지 않을 경우, 초기화가
+	//		이뤄지지 않는다. purse는 그 동안 초기화를 하지 않았으므로 플레이어가 접속을 해제해도 정보(쓰레기값)를
+	//		갖고 있다. 이를 이용해서 DB에서 값을 가져오기 전에 빠르게 맵 이동을 반복할 경우, 쓰레기값을 DB에 저장하게된다.
+	//		이를 막기 위해 객체 초기화 순간에 값도 초기화시키도록 한다
 	m_InventoryPurse.SetZeroMoney();
 	m_StoragePurse.SetZeroMoney();
 
@@ -161,20 +164,20 @@ void CPlayer::InitClearData()
 	m_SkillFailCount = 0;
 	mGravity = 0;
 
-	memset( &m_DateMatching, 0, sizeof(DATE_MATCHING_INFO));			// ÂµÂ¥ÃÃÃÂ® Â¸ÃÃÂª ÃÃÂ¹ÃÃÃµ.
-	// desc_hseos_ÃÃÂ¹ÃÂµÃ®Â·Ã01
-	// S ÃÃÂ¹ÃÂµÃ®Â·Ã ÃÃÂ°Â¡ added by hseos 2007.06.09
+	memset( &m_DateMatching, 0, sizeof(DATE_MATCHING_INFO));			// 데이트 매칭 주민증.
+	// desc_hseos_주민등록01
+	// S 주민등록 추가 added by hseos 2007.06.09
 	m_DateMatching.nSerchTimeTick = gCurTime;
 	m_DateMatching.nRequestChatTimeTick = gCurTime;
-	// E ÃÃÂ¹ÃÂµÃ®Â·Ã ÃÃÂ°Â¡ added by hseos 2007.06.09
+	// E 주민등록 추가 added by hseos 2007.06.09
 	memset( &mPassiveStatus, 0, sizeof( Status ) );
 	memset( &mBuffStatus, 0, sizeof( Status ) );
 	memset( &mRatePassiveStatus, 0, sizeof( Status ) );
 	memset( &mRateBuffStatus, 0, sizeof( Status ) );
 	memset( &mAbnormalStatus, 0, sizeof( AbnormalStatus ) );
 
-	// desc_hseos_Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ01
-	// S Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ ÃÃÂ°Â¡ added by hseos 2007.05.23
+	// desc_hseos_몬스터미터01
+	// S 몬스터미터 추가 added by hseos 2007.05.23
 	ZeroMemory(&m_stMonstermeterInfo, sizeof(m_stMonstermeterInfo));
 	m_stMonstermeterInfo.nPlayTimeTick = gCurTime;
 	m_pcFamilyEmblem = NULL;
@@ -224,7 +227,6 @@ void CPlayer::InitClearData()
 		m_fFishItemRate[i] = 0.0f;
 	}
 	m_lstGetFishList.clear();
-	
 
 	m_wFishingLevel = 1;
 	m_dwFishingExp = 0;
@@ -240,7 +242,7 @@ void CPlayer::InitClearData()
 	m_wFireCount = 0;
 	m_dwLastCookTime = 0;
 	memset(m_MasterRecipe, 0, sizeof(m_MasterRecipe));
-	// 090316 LUJ, ÃÂ» Â°Ã ÃÃÂ±Ã¢ÃÂ­
+	// 090316 LUJ, 탈 것 초기화
 	SetSummonedVehicle( 0 );
 	SetMountedVehicle( 0 );
 	m_initState = 0;
@@ -257,6 +259,10 @@ void CPlayer::InitClearData()
 
 	m_dwConsignmentTick = 0;
 	ForbidChatTime = 0;
+	
+// --- skr 22012020
+	RelifeON = FALSE;
+	RelifeTimer = 0;
 }
 
 BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObjectInfo)
@@ -271,7 +277,7 @@ BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObject
 	m_bExit = FALSE;
 	m_bNormalExit = FALSE;
 //
-	CObject::Init(kind, AgentNum, pBaseObjectInfo); //Â¢Â¯Â¨ÃÂ¡Â¾aÂ¨Ã¹Â¡Â©Â¢Â¥A eObjectState_NoneAÂ¢Â¬Â¡Â¤I Â¢Â¬Â¢Â¬Â¥Ã¬cÂ¢Â¥U.
+	CObject::Init(kind, AgentNum, pBaseObjectInfo); //¿ⓒ±a¼­´A eObjectState_NoneA¸·I ¸¸μc´U.
 
 //KES 040827
 	OBJECTSTATEMGR_OBJ->StartObjectState( this, eObjectState_Immortal, 0 );
@@ -316,14 +322,14 @@ BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObject
 
 	m_bNoExpPenaltyByPK = FALSE;
 
-	// 080515 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ©Â¿Ã« Â±Â¸ÃÂ¶ÃÂ¼ ÃÃÂ±Ã¢ÃÂ­
+	// 080515 LUJ, 쿨타임 체크용 구조체 초기화
 	ZeroMemory( &mCheckCoolTime, sizeof( mCheckCoolTime ) );
 
 	m_dwSkillCancelCount = 0;
 	m_dwSkillCancelLastTime = 0;
 
 	m_dwAutoNoteLastExecuteTime = 0;
-	
+
 	mWeaponEnchantLevel = 0;
 	mPhysicDefenseEnchantLevel = 0;
 	mMagicDefenseEnchantLevel = 0;
@@ -332,6 +338,10 @@ BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObject
 
 	ZeroMemory( &m_YYManaRecoverTime, sizeof(m_YYManaRecoverTime) );
 	m_ManaRecoverDirectlyAmount = 0;
+
+// --- skr 22012020
+	RelifeON = FALSE;
+	RelifeTimer = 0;
 
 	return TRUE;
 }
@@ -343,9 +353,9 @@ void CPlayer::Release()
 	FishingData_Update(GetID(), GetFishingLevel(), GetFishingExp(), GetFishPoint());
 	Cooking_Update(this);
 
-	if(FISHINGMGR->GetActive())		// Â³Â¬Â½ÃÂ½ÂºÃÂ©Â¸Â³ÃÂ®Â°Â¡ ÃÂ°Â¼ÂºÂµÃÂ¾Ã® ÃÃÃÂ»Â¶Â§(==2Â¹Ã¸ Â³Ã³ÃÃ¥Â¸Ã)Â¸Â¸ Â±Ã¢Â·Ã.
+	if(FISHINGMGR->GetActive())		// 낚시스크립트가 활성되어 있을때(==2번 농장맵)만 기록.
 	{
-		// 080808 LUJ, Â³Â¬Â½Ã ÃÂ¤ÂºÂ¸Â¸Â¦ Â·ÃÂ±ÃÂ·Ã ÃÃºÃÃ¥
+		// 080808 LUJ, 낚시 정보를 로그로 저장
 		Log_Fishing(
 			GetID(),
 			eFishingLog_Regular,
@@ -392,8 +402,8 @@ void CPlayer::Release()
 	}
 
 	m_FollowMonsterList.RemoveAll();
-	
-	{		
+
+	{
 		m_QuestList.SetPositionHead();
 
 		for(
@@ -405,7 +415,6 @@ void CPlayer::Release()
 
 		m_QuestList.RemoveAll();
 	}
-	
 
 	m_InventoryPurse.Release();
 	m_StoragePurse.Release();
@@ -416,7 +425,7 @@ void CPlayer::Release()
 	m_SkillFailCount = 0;
 	m_SkillTree->Release();
 
-	SAFE_DELETE_ARRAY(m_pcFamilyEmblem);	
+	SAFE_DELETE_ARRAY(m_pcFamilyEmblem);
 
 	{
 		CPet* const petObject = PETMGR->GetPet(
@@ -427,7 +436,7 @@ void CPlayer::Release()
 			FALSE);
 	}
 
-	// 090316 LUJ, ÃÃÃÃ· ÃÂ³Â¸Â®ÃÃÂ´Ã
+	// 090316 LUJ, 하차 처리한다
 	{
 		CVehicle* const vehicleObject = ( CVehicle* )g_pUserTable->FindUser( GetMountedVehicle() );
 
@@ -456,7 +465,7 @@ void CPlayer::UpdateGravity()
 
 BOOL CPlayer::AddFollowList(CMonster * pMob)
 {
-	if( m_FollowMonsterList.GetDataNum() < 50 )		//max 50Â¸Â¶Â¸Â®
+	if( m_FollowMonsterList.GetDataNum() < 50 )		//max 50마리
 	{
 		m_FollowMonsterList.Add(pMob, pMob->GetID());
 		UpdateGravity();
@@ -466,12 +475,12 @@ BOOL CPlayer::AddFollowList(CMonster * pMob)
 	return FALSE;
 }
 BOOL CPlayer::RemoveFollowAsFarAs(DWORD GAmount, CObject* pMe )
-{	
+{
 	VECTOR3 * ObjectPos	= CCharMove::GetPosition(this);
 	BOOL bMe = FALSE;
 
 	while(GAmount > 100)
-	{	
+	{
 		CMonster * MaxObject = NULL;
 		float	MaxDistance	= -1;
 		float	Distance	= 0;
@@ -508,7 +517,7 @@ BOOL CPlayer::RemoveFollowAsFarAs(DWORD GAmount, CObject* pMe )
 		}
 	}
 
-	return bMe;	
+	return bMe;
 }
 
 void CPlayer::RemoveFollowList(DWORD ID)
@@ -538,7 +547,7 @@ void CPlayer::InitCharacterTotalInfo(CHARACTER_TOTALINFO* pTotalInfo)
 	else
 		m_HeroCharacterInfo.bVisible = TRUE;
 
-	// 071226 KTH -- ÃÃÂºÂ¥ÃÃ¤Â¸Â®ÃÃ ÃÂ©Â±Ã¢Â¸Â¦ Â¼Â³ÃÂ¤ÃÃÂ¿Â© ÃÃÂ´Ã.
+	// 071226 KTH -- 인벤토리의 크기를 설정하여 준다.
 	m_InventorySlot.SetSlotNum( POSTYPE( SLOT_INVENTORY_NUM + GetInventoryExpansionSize() ) );
 
 }
@@ -551,7 +560,7 @@ void CPlayer::InitHeroTotalInfo(HERO_TOTALINFO* pHeroInfo)
 
 void CPlayer::InitItemTotalInfo(ITEM_TOTALINFO* pItemInfo)
 {
-	m_ItemContainer.GetSlot(eItemTable_Inventory)->SetItemInfoAll(pItemInfo->Inventory);	
+	m_ItemContainer.GetSlot(eItemTable_Inventory)->SetItemInfoAll(pItemInfo->Inventory);
 	m_ItemContainer.GetSlot(eItemTable_Weared)->SetItemInfoAll(pItemInfo->WearedItem);
 }
 
@@ -568,7 +577,7 @@ void CPlayer::InitStorageInfo(BYTE Storagenum,MONEYTYPE money)
 
 	MONEYTYPE maxmoney = 0;
 	if(Storagenum)
-	{		
+	{
 		STORAGELISTINFO* pInfo = STORAGEMGR->GetStorageInfo(Storagenum);
 		ASSERT(pInfo);
 		maxmoney = pInfo ? pInfo->MaxMoney : 10;
@@ -578,7 +587,7 @@ void CPlayer::InitStorageInfo(BYTE Storagenum,MONEYTYPE money)
 		ASSERT(money == 0);
 		maxmoney = 0;
 	}
-	pSlot->CreatePurse(&m_StoragePurse, this, money, maxmoney);	
+	pSlot->CreatePurse(&m_StoragePurse, this, money, maxmoney);
 }
 
 void CPlayer::InitShopItemInfo(SEND_SHOPITEM_INFO& message)
@@ -641,7 +650,7 @@ void CPlayer::GetItemtotalInfo(ITEM_TOTALINFO& pRtInfo,DWORD dwFlag)
 	}
 }
 
-// 091026 LUJ, Â¹Ã¶ÃÃ ÃÂ©Â±Ã¢Â¿Â¡ Â¹Â«Â°Ã¼ÃÃÂ°Ã ÃÃ¼Â¼ÃÃÃ Â¼Ã¶ ÃÃÂµÂµÂ·Ã Â¼Ã¶ÃÂ¤
+// 091026 LUJ, 버퍼 크기에 무관하게 전송할 수 있도록 수정
 DWORD CPlayer::SetAddMsg(DWORD dwReceiverID, BOOL isLogin, MSGBASE*& sendMessage)
 {
 	if(eUSERLEVEL_GM >= GetUserLevel() &&
@@ -662,7 +671,7 @@ DWORD CPlayer::SetAddMsg(DWORD dwReceiverID, BOOL isLogin, MSGBASE*& sendMessage
 	message.bLogin = BYTE(isLogin);
 	message.mMountedVehicle.mVehicleIndex = GetSummonedVehicle();
 
-	// 090316 LUJ, ÃÂ¾Â½Ã ÃÂ¤ÂºÂ¸ ÂºÂ¹Â»Ã§
+	// 090316 LUJ, 탑승 정보 복사
 	{
 		CVehicle* const vehicle = ( CVehicle* )g_pUserTable->FindUser( GetMountedVehicle() );
 
@@ -673,7 +682,7 @@ DWORD CPlayer::SetAddMsg(DWORD dwReceiverID, BOOL isLogin, MSGBASE*& sendMessage
 		}
 	}
 
-	// ÃÃÂ¿Ã¬ÃÂ¡ ÃÂ¾Â½Ã ÃÂ¤ÂºÂ¸ ÂºÂ¹Â»Ã§
+	// 하우징 탑승 정보 복사
 	{
 		const stHouseRiderInfo* const houseRiderInfo = HOUSINGMGR->GetRiderInfo(GetID());
 
@@ -706,7 +715,7 @@ DWORD CPlayer::SetAddMsg(DWORD dwReceiverID, BOOL isLogin, MSGBASE*& sendMessage
 				break;
 			}
 		}
-		
+
 		message.AddableInfo.AddInfo(
 			BYTE(kind),
 			WORD(strlen(StallTitle)+1),
@@ -758,7 +767,7 @@ void CPlayer::CalcState()
 }
 
 void CPlayer::MoneyUpdate( MONEYTYPE money )
-{	
+{
 	m_HeroInfo.Money = money;
 }
 
@@ -768,7 +777,7 @@ void CPlayer::SetStrength(DWORD val)
 
 	CHARCALCMGR->CalcCharStats(this);
 
-	// DBÂ¡Ã?Â¡ÃÂ¢Ã§ Â¡Â§uÂ¢Â®AÂ¡ÃiÂ¢Â®IAIÂ¡Â§Â¢Â®Â¡Ãc
+	// DB¡Ë?¡Ë¢ç ¡§u¢®A¡Íi¢®IAI¡§¢®¡Ëc
 	CharacterHeroInfoUpdate(this);
 
 	MSG_DWORD msg;
@@ -785,7 +794,7 @@ void CPlayer::SetDexterity(DWORD val)
 
 	CHARCALCMGR->CalcCharStats(this);
 
-	// DBÂ¡Ã?Â¡ÃÂ¢Ã§ Â¡Â§uÂ¢Â®AÂ¡ÃiÂ¢Â®IAIÂ¡Â§Â¢Â®Â¡Ãc
+	// DB¡Ë?¡Ë¢ç ¡§u¢®A¡Íi¢®IAI¡§¢®¡Ëc
 	CharacterHeroInfoUpdate(this);
 
 	MSG_DWORD msg;
@@ -799,10 +808,10 @@ void CPlayer::SetVitality(DWORD val)
 {
 	m_HeroInfo.Vit = val;
 
-	// Â¢Â®iyÂ¡ÃÂ¡Ã¾iÂ¢Â®Â¢Â´A, Â¨ÃoÂ¨ÃÂ¢Â®Â¡Â§uiÂ¢Â®Â¢Â´A; Â¡ÃÂ¡ÃUÂ¡Â§oA Â¢Â®Â¨Â¡eÂ¢Â®ie
+	// ¢®iy¡Ë¡þi¢®¢´A, ¨Ïo¨Ï¢®¡§ui¢®¢´A; ¡Ë¡ÍU¡§oA ¢®¨¡e¢®ie
 	CHARCALCMGR->CalcCharStats(this);
 
-	// DBÂ¡Ã?Â¡ÃÂ¢Ã§ Â¡Â§uÂ¢Â®AÂ¡ÃiÂ¢Â®IAIÂ¡Â§Â¢Â®Â¡Ãc
+	// DB¡Ë?¡Ë¢ç ¡§u¢®A¡Íi¢®IAI¡§¢®¡Ëc
 	CharacterHeroInfoUpdate(this);
 
 	MSG_DWORD msg;
@@ -816,10 +825,10 @@ void CPlayer::SetWisdom(DWORD val)
 {
 	m_HeroInfo.Wis = val;
 
-	// Â¨ÃÂ©ÂªÂ¢Â®iÂ¢Â®Â¢Â´A; Â¡ÃÂ¡ÃUÂ¡Â§oA Â¢Â®Â¨Â¡eÂ¢Â®ie
+	// ¨Ï©ª¢®i¢®¢´A; ¡Ë¡ÍU¡§oA ¢®¨¡e¢®ie
 	CHARCALCMGR->CalcCharStats(this);
 
-	// DBÂ¡Ã?Â¡ÃÂ¢Ã§ Â¡Â§uÂ¢Â®AÂ¡ÃiÂ¢Â®IAIÂ¡Â§Â¢Â®Â¡Ãc
+	// DB¡Ë?¡Ë¢ç ¡§u¢®A¡Íi¢®IAI¡§¢®¡Ëc
 	CharacterHeroInfoUpdate(this);
 
 	MSG_DWORD msg;
@@ -878,45 +887,41 @@ CItemSlot * CPlayer::GetSlot(eITEMTABLE tableIdx)
 
 //-------------------------------------------------------------------------------------------------
 //	NAME : SetLifeForce
-//	DESC : 080625 LYW 
-//		   ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¿Â¡Â¼Â­ Â°Â­ÃÂ¾ÃÃÂ³Âª ÃÂ¨Â±Ã¨ ÃÃ¶Â»Ã³ÃÃ Â¹ÃÂ»Ã½ ÃÃ Â¶Â§, 
-//		   ÃÂ³Â¸Â¯ÃÃÃÃ Â»Ã½Â¸Ã­Â·Ã 50%Â¸Â¦ ÂºÂ¹Â±Â¸ÃÃ ÃÃÂ¾Ã®Â¾Ã ÃÃÂ´Ã. Â±ÃÂ·Â±ÂµÂ¥ Â»Ã³ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¸Ã©, 
-//		   Â±Ã¢ÃÂ¸ ÃÃÂ¼Ã¶Â´Ã return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ¹ÃÂ·Ã, Â°Â­ÃÂ¦Â·Ã ÂºÂ¹Â±Â¸ Â¿Â©ÂºÃÂ¸Â¦ Â¼Â¼ÃÃÃÃ Â¼Ã¶ ÃÃÂ´Ã ÃÃÂ¼Ã¶Â¸Â¦ ÃÃÂ°Â¡ÃÃÂ´Ã.
+//	DESC : 080625 LYW
+//		   캐릭터가 죽은 상태에서 강종이나 튕김 현상이 발생 할 때,
+//		   캐릭터의 생명력 50%를 복구해 주어야 한다. 그런데 상태가 죽은 상태면,
+//		   기존 함수는 return 처리를 하므로, 강제로 복구 여부를 세팅할 수 있는 함수를 추가한다.
 //-------------------------------------------------------------------------------------------------
-void CPlayer::SetLifeForce(DWORD Life, BYTE byForce, BOOL bSendMsg) 
+void CPlayer::SetLifeForce(DWORD Life, BYTE byForce, BOOL bSendMsg)
 {
-	// Â°Â­ÃÂ¦ Â¼Â¼ÃÃ Â¿Â©ÂºÃÂ¸Â¦ ÃÂ®ÃÃÃÃÂ´Ã.
+	// 강제 세팅 여부를 확인한다.
 	if(byForce == FALSE)
 	{
-		// ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¶Ã³Â¸Ã©, return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+		// 캐릭터가 죽은 상태라면, return 처리를 한다.
 		if(GetState() == eObjectState_Die) return ;
 	}
 
-
-	// ÃÃ¶ÃÃ§ ÃÂ³Â¸Â¯ÃÃ Â·Â¹ÂºÂ§Â¿Â¡ Â¸ÃÂ´Ã ÃÃÂ´Ã« Â»Ã½Â¸Ã­Â·ÃÃÂ» Â¹ÃÂ´ÃÂ´Ã.
+	// 현재 캐릭터 레벨에 맞는 최대 생명력을 받는다.
 	DWORD maxlife = 0 ;
 	maxlife = GetMaxLife() ;
 
-
-	// Â»Ã½Â¸Ã­Â·Ã Â¼Ã¶ÃÂ¡ ÃÂ¯ÃÂ¿ ÃÂ¼ÃÂ©.
+	// 생명력 수치 유효 체크.
 	if(Life > maxlife) Life = maxlife ;
 
-
-	// ÃÃÃÃÂ·Ã Â³ÃÂ¾Ã®Â¿Ã Â»Ã½Â¸Ã­Â·ÃÃÃ Â±Ã¢ÃÂ¸ Â»Ã½Â¸Ã­Â·Ã ÂºÂ¸Â´Ã ÃÃÃÂ¸Â¸Ã©, return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 인자로 넘어온 생명력이 기존 생명력 보다 작으면, return 처리를 한다.
 	if( m_HeroCharacterInfo.Life >= Life ) return ;
 
-	
-	// Â±Ã¢ÃÂ¸ Â»Ã½Â¸Ã­Â·Ã / ÃÃÃÃÂ·Ã Â³ÃÂ¾Ã®Â¿Ã Â»Ã½Â¸Ã­Â·ÃÃÃ Â°Â°ÃÃ¶ Â¾ÃÃÂ¸Â¸Ã©,
+	// 기존 생명력 / 인자로 넘어온 생명력이 같지 않으면,
 	if(m_HeroCharacterInfo.Life != Life)
 	{
-		// Â¸ÃÂ½ÃÃÃ¶ ÃÃ¼Â¼Ã ÃÃÂ´Ã Â»Ã³ÃÂ²ÃÃÂ¶Ã³Â¸Ã©,
+		// 메시지 전송 하는 상황이라면,
 		if(bSendMsg == TRUE)
 		{
-			//// Â»ÃµÂ·ÃÂ¿Ã® Â»Ã½Â¸Ã­Â·ÃÃÂ» Â°Ã¨Â»ÃªÃÃÂ´Ã.
+			//// 새로운 생명력을 계산한다.
 			//DWORD dwNewLife = 0 ;
 			//dwNewLife = Life - GetLife() ;
 
-			// Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ ÃÃ¼Â¼ÃÃÃÂ´Ã.
+			// 메시지를 전송한다.
 			MSG_INT msg ;
 			msg.Category = MP_CHAR ;
 			msg.Protocol = MP_CHAR_LIFE_ACK ;
@@ -926,21 +931,16 @@ void CPlayer::SetLifeForce(DWORD Life, BYTE byForce, BOOL bSendMsg)
 
 			SendMsg(&msg,sizeof(msg)) ;
 		}
-		
+
 		SendLifeToParty(
 			Life);
 	}
-		
 
-	// ÃÂ³Â¸Â¯ÃÃÃÃ Â»Ã½Â¸Ã­Â·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 캐릭터의 생명력을 세팅한다.
 	m_HeroCharacterInfo.Life = Life ;
 }
 
-
-
-
-
-void CPlayer::SetLife(DWORD val,BOOL bSendMsg) 
+void CPlayer::SetLife(DWORD val,BOOL bSendMsg)
 {
 	if(GetState() == eObjectState_Die)
 		return;
@@ -948,12 +948,12 @@ void CPlayer::SetLife(DWORD val,BOOL bSendMsg)
 	DWORD maxlife = GetMaxLife();
 	if(val > maxlife)
 		val = maxlife;
-	
-	if(m_HeroCharacterInfo.Life != val)	// Â¡ÃiÂ¢Â®IÂ¨ÃoIAo AIÂ¢Â®Â¨Â¡Â¨ÃÂ¢Â®Â¡Ã?iÂ¡Ã?Â¡ÃÂ¢Ã§Â¡ÃÂ¡ÃA Â¡Ã?Â¢Â®Â©Â­AaÂ¡Ã?Â¡ÃÂ¢Ã§Â¡Â§uÂ¢Â®Â¨Ã Â¢Â®iÂ¡Â§IAÂ¡Â§Â¨Â£Â¡ÃÂ¡ÃU.
+
+	if(m_HeroCharacterInfo.Life != val)	// ¡Íi¢®I¨ÏoIAo AI¢®¨¡¨Ï¢®¡Ë?i¡Ë?¡Ë¢ç¡Ë¡ÍA ¡Ë?¢®©­Aa¡Ë?¡Ë¢ç¡§u¢®¨Ï ¢®i¡§IA¡§¨£¡Ë¡ÍU.
 	{
 		if(bSendMsg == TRUE)
 		{
-			// To AÂ¢Â®Â©Â­Â¡ÃOoAIÂ¡Â§uÂ¨ÃÂ¡ÃÂ¡Â§Â¢Â®Â¡Ãc -------------------------------
+			// To A¢®©­¡ËOoAI¡§u¨Ï¡Ì¡§¢®¡Ëc -------------------------------
 			MSG_INT msg;
 			msg.Category = MP_CHAR;
 			msg.Protocol = MP_CHAR_LIFE_BROADCAST;
@@ -962,16 +962,16 @@ void CPlayer::SetLife(DWORD val,BOOL bSendMsg)
 			msg.nData = val - GetLife();
 			PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof( msg ) );
 		}
-		
+
 		SendLifeToParty(
 			val);
 	}
-		
+
 	m_HeroCharacterInfo.Life = val;
 }
 
 void CPlayer::SendLifeToParty(DWORD val)
-{	
+{
 	if(CParty* pParty = PARTYMGR->GetParty(GetPartyIdx()))
 	{
 		MSG_DWORD2 message;
@@ -991,47 +991,39 @@ void CPlayer::SendLifeToParty(DWORD val)
 	}
 }
 
-
-
-
-
 //-------------------------------------------------------------------------------------------------
 //	NAME : SetLifeForce
-//	DESC : 080625 LYW 
-//		   ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¿Â¡Â¼Â­ Â°Â­ÃÂ¾ÃÃÂ³Âª ÃÂ¨Â±Ã¨ ÃÃ¶Â»Ã³ÃÃ Â¹ÃÂ»Ã½ ÃÃ Â¶Â§, 
-//		   ÃÂ³Â¸Â¯ÃÃÃÃ Â¸Â¶Â³Âª 30%Â¸Â¦ ÂºÂ¹Â±Â¸ÃÃ ÃÃÂ¾Ã®Â¾Ã ÃÃÂ´Ã. Â±ÃÂ·Â±ÂµÂ¥ Â»Ã³ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¸Ã©, 
-//		   Â±Ã¢ÃÂ¸ ÃÃÂ¼Ã¶Â´Ã return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ¹ÃÂ·Ã, Â°Â­ÃÂ¦Â·Ã ÂºÂ¹Â±Â¸ Â¿Â©ÂºÃÂ¸Â¦ Â¼Â¼ÃÃÃÃ Â¼Ã¶ ÃÃÂ´Ã ÃÃÂ¼Ã¶Â¸Â¦ ÃÃÂ°Â¡ÃÃÂ´Ã.
+//	DESC : 080625 LYW
+//		   캐릭터가 죽은 상태에서 강종이나 튕김 현상이 발생 할 때,
+//		   캐릭터의 마나 30%를 복구해 주어야 한다. 그런데 상태가 죽은 상태면,
+//		   기존 함수는 return 처리를 하므로, 강제로 복구 여부를 세팅할 수 있는 함수를 추가한다.
 //-------------------------------------------------------------------------------------------------
-void CPlayer::SetManaForce(DWORD Mana, BYTE byForce, BOOL bSendMsg) 
+void CPlayer::SetManaForce(DWORD Mana, BYTE byForce, BOOL bSendMsg)
 {
-	// Â°Â­ÃÂ¦ Â¼Â¼ÃÃ Â¿Â©ÂºÃÂ¸Â¦ ÃÂ®ÃÃÃÃÂ´Ã.
+	// 강제 세팅 여부를 확인한다.
 	if(byForce == FALSE)
 	{
-		// ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ¶Ã³Â¸Ã©, return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+		// 캐릭터가 죽은 상태라면, return 처리를 한다.
 		if(GetState() == eObjectState_Die) return ;
 	}
 
-
-	// ÃÂ³Â¸Â¯ÃÃÃÃ ÃÃ¶ÃÃ§ Â·Â¹ÂºÂ§Â»Ã³ ÃÃÂ´Ã« Â¸Â¶Â³Âª Â¼Ã¶ÃÂ¡Â¸Â¦ Â¹ÃÂ´ÃÂ´Ã.
+	// 캐릭터의 현재 레벨상 최대 마나 수치를 받는다.
 	DWORD MaxMana = 0 ;
 	MaxMana = GetMaxMana() ;
 
-
-	// ÃÃÃÃÂ·Ã Â³ÃÂ¾Ã®Â¿Ã Â¸Â¶Â³ÂªÃÃ ÃÂ¯ÃÂ¿ Â¹Ã¼ÃÂ§Â¸Â¦ ÃÂ¼ÃÂ©.
+	// 인자로 넘어온 마나의 유효 범위를 체크.
 	if(Mana > MaxMana) Mana = MaxMana ;
 
-
-	// ÃÃÃÃÂ·Ã Â³ÃÂ¾Ã®Â¿Ã Â¸Â¶Â³ÂªÂ·Â®ÃÃ Â±Ã¢ÃÂ¸ Â¸Â¶Â³ÂªÂ·Â® ÂºÂ¸Â´Ã ÃÃÃÂ¸Â¸Ã©, return ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 인자로 넘어온 마나량이 기존 마나량 보다 작으면, return 처리를 한다.
 	if( m_HeroInfo.Mana >= Mana ) return ;
 
-
-	// Â±Ã¢ÃÂ¸Â¸Â¶Â³Âª / ÃÃÃÃÂ·Ã Â³ÃÂ¾Ã®Â¿Ã Â¸Â¶Â³ÂªÂ°Â¡ Â°Â°ÃÃ¶ Â¾ÃÃÂ¸Â¸Ã©,
+	// 기존마나 / 인자로 넘어온 마나가 같지 않으면,
 	if( m_HeroInfo.Mana != Mana)
 	{
-		// Â¸ÃÂ½ÃÃÃ¶ ÃÃ¼Â¼Ã Â¿Â©ÂºÃÂ°Â¡ TRUE ÃÃÂ¸Ã©,
+		// 메시지 전송 여부가 TRUE 이면,
 		if(bSendMsg)
 		{
-			// Â¸Â¶Â³ÂªÂ¸Â¦ ÃÃ¼Â¼ÃÃÃÂ´Ã.
+			// 마나를 전송한다.
 			MSG_DWORD msg ;
 			msg.Category = MP_CHAR ;
 			msg.Protocol = MP_CHAR_MANA_GET_ACK;
@@ -1039,22 +1031,17 @@ void CPlayer::SetManaForce(DWORD Mana, BYTE byForce, BOOL bSendMsg)
 			msg.dwData = Mana ;
 			SendMsg(&msg,sizeof(msg)) ;
 		}
-		
+
 		SendManaToParty(
 			Mana);
 	}
-	
 
-	// ÃÂ³Â¸Â¯ÃÃÃÃ Â¸Â¶Â³ÂªÂ¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-	m_HeroInfo.Mana = Mana ; 
+	// 캐릭터의 마나를 세팅한다.
+	m_HeroInfo.Mana = Mana ;
 }
 
-
-
-
-
 void CPlayer::SetMana(DWORD val,BOOL bSendMsg)
-{ 
+{
 	if(GetState() == eObjectState_Die)
 		return;
 
@@ -1064,7 +1051,7 @@ void CPlayer::SetMana(DWORD val,BOOL bSendMsg)
 
 	if( m_HeroInfo.Mana != val)
 	{
-		// 100223 ShinJS --- Â¸Â¶Â³Âª ÂµÂ¥Â¹ÃÃÃ¶ ÃÃÂ°Â¡Â·Ã ÃÃÃÃ Â¸Â¶Â³Âª ÃÂ¤ÂºÂ¸Â¸Â¦ ÂºÂ¯ÃÂ­Â·Â®ÃÂ¸Â·Ã Â¼Ã¶ÃÂ¤.
+		// 100223 ShinJS --- 마나 데미지 추가로 인한 마나 정보를 변화량으로 수정.
 		if(bSendMsg)
 		{
 			MSG_INT msg;
@@ -1074,12 +1061,12 @@ void CPlayer::SetMana(DWORD val,BOOL bSendMsg)
 			msg.nData = val - GetMana();
 			SendMsg(&msg,sizeof(msg));
 		}
-		
+
 		SendManaToParty(
 			val);
 	}
-	
-	m_HeroInfo.Mana = val; 
+
+	m_HeroInfo.Mana = val;
 }
 
 void CPlayer::SendManaToParty(DWORD mana)
@@ -1107,7 +1094,7 @@ void CPlayer::SetMaxLife(DWORD val)
 {
 	m_HeroCharacterInfo.MaxLife = val;
 
-	// To AÂ¢Â®Â©Â­Â¡ÃOoAIÂ¡Â§uÂ¨ÃÂ¡ÃÂ¡Â§Â¢Â®Â¡Ãc -------------------------------
+	// To A¡þ￠OoAI¨uⓒ￡¨¡￠c -------------------------------
 	MSG_DWORD msg;
 	msg.Category = MP_CHAR;
 	msg.Protocol = MP_CHAR_MAXLIFE_NOTIFY;
@@ -1120,7 +1107,7 @@ void CPlayer::SetMaxMana(DWORD val)
 {
 	m_HeroInfo.MaxMana= val;
 
-	// To AÂ¢Â®Â©Â­Â¡ÃOoAIÂ¡Â§uÂ¨ÃÂ¡ÃÂ¡Â§Â¢Â®Â¡Ãc -------------------------------
+	// To A¡þ￠OoAI¨uⓒ￡¨¡￠c -------------------------------
 	MSG_DWORD msg;
 	msg.Category = MP_CHAR;
 	msg.Protocol = MP_CHAR_MAXMANA_NOTIFY;
@@ -1149,10 +1136,10 @@ void CPlayer::AddIntelligence( int val )
 {
 	SetIntelligence( m_HeroInfo.Int+ val ) ;
 }
-void CPlayer::SetPlayerLevelUpPoint(LEVELTYPE val) 
-{ 
+void CPlayer::SetPlayerLevelUpPoint(LEVELTYPE val)
+{
 	m_HeroInfo.LevelUpPoint=val;
-	
+
 	MSG_DWORD msg;
 	msg.Category = MP_CHAR;
 	msg.Protocol = MP_CHAR_LEVELUPPOINT_NOTIFY;
@@ -1161,8 +1148,8 @@ void CPlayer::SetPlayerLevelUpPoint(LEVELTYPE val)
 	SendMsg(&msg,sizeof(msg));
 }
 /*****************************************************************/
-/* 1. AEÂ¢Â®Â¨ÃºaÂ¡Ã?Â¡ÃÂ¢Ã§ AÂ¨ÃÂ©ÂªÂ¡ÃÂ¡Ã¾?AIÂ¢Â®Â¨Â¡Â¡ÃÂ¢Ã§ Â¢Â®iyÂ¡Â§uÂ¡Â§Â¡Ã¾Â¡ÃiCÂ¡Â§uu;Â¡ÃOÂ¢Â®Â¡Â¿ from DBResultQuery
-/* 2. SetPlayerExpPoint()Â¡Ã?Â¡ÃÂ¢Ã§Â¡Â§uÂ¢Â®Â¨Ã AOÂ¡ÃÂ¡Ãe Â¢Â®Â¨Â¡Â¨ÃÂ¢Â®CeAÂ¡ÃÂ¢Ã§Â¡ÃÂ¡Ã¾| Â¨ÃÂ©ÂªNÂ¡Â§ui Â¡Â§uÂ¨Ão; Â¡ÃOÂ¢Â®Â¡Â¿ callÂ¡ÃiE
+/* 1. AE¢®¨úa¡Ë?¡Ë¢ç A¨Ï©ª¡Ë¡þ?AI¢®¨¡¡Ë¢ç ¢®iy¡§u¡§¡þ¡ÍiC¡§uu;¡ËO¢®¡¿ from DBResultQuery
+/* 2. SetPlayerExpPoint()¡Ë?¡Ë¢ç¡§u¢®¨Ï AO¡Ë¡Íe ¢®¨¡¨Ï¢®CeA¡Ë¢ç¡Ë¡þ| ¨Ï©ªN¡§ui ¡§u¨Ïo; ¡ËO¢®¡¿ call¡ÍiE
 /*
 /*
 /*****************************************************************/
@@ -1194,7 +1181,7 @@ void CPlayer::SetLevel(LEVELTYPE level)
 
 			SetSkillPoint( skillpoint, FALSE );
 
-			// ÃÂ¥ÃÃÂºÂ¥ÃÂ®
+			// 웹이벤트
 			if( level == 10 )
 			{
 				WebEvent( GetUserID(), 1 );
@@ -1247,21 +1234,19 @@ void CPlayer::SetLevel(LEVELTYPE level)
 		this);
 }
 
-// 080611 LYW --- Player : Â½ÂºÃÂ³ÃÃ·ÃÃÃÂ® Â¾Ã·ÂµÂ¥ÃÃÃÂ® ÃÂ³Â¸Â®Â¸Â¦ Â¼Ã¶ÃÂ¤ÃÃ.
-// (Â¾ÃÃÃÃÃÃÂ¸Â·Ã Â½ÂºÃÂ³ ÃÃ·ÃÃÃÂ®Â¸Â¦ ÃÃÂ°Â¡ÃÃÂ´Ã Â±Ã¢Â´ÃÃÃ Â»Ã½Â°Ã¥Â±Ã¢ Â¶Â§Â¹Â®.)
+// 080611 LYW --- Player : 스킬포인트 업데이트 처리를 수정함.
+// (아이템으로 스킬 포인트를 추가하는 기능이 생겼기 때문.)
 //void CPlayer::SetSkillPoint( DWORD point )
 void CPlayer::SetSkillPoint( DWORD point, BYTE byForced )
 {
-	// Â°Â­ÃÂ¦ Â¾Ã·ÂµÂ¥ÃÃÃÂ® Â¿Â©ÂºÃ ÃÂ¼ÃÂ©.
+	// 강제 업데이트 여부 체크.
 	ASSERT(byForced <= TRUE) ;
 	if(byForced > TRUE) return ;
 
-
-	// Â½ÂºÃÂ³ ÃÃ·ÃÃÃÂ® Â¾Ã·ÂµÂ¥ÃÃÃÂ®.
+	// 스킬 포인트 업데이트.
 	GetHeroTotalInfo()->SkillPoint += point;
 
-
-	// ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ® ÃÃ¼Â¼Ã
+	// 클라이언트 전송
 	MSG_DWORD msg;
 
 	msg.Category = MP_SKILLTREE;
@@ -1271,17 +1256,14 @@ void CPlayer::SetSkillPoint( DWORD point, BYTE byForced )
 
 	SendMsg(&msg, sizeof(msg));
 
-
-	// DB Â¾Ã·ÂµÂ¥ÃÃÃÂ®
+	// DB 업데이트
 	SkillPointUpdate( GetID(), GetSkillPoint() );
 
-
-	// 071129 LYW --- Player : Â´Â©ÃÃ» Â½ÂºÃÂ³ ÃÃ·ÃÃÃÂ® Â¾Ã·ÂµÂ¥ÃÃÃÂ®.
+	// 071129 LYW --- Player : 누적 스킬 포인트 업데이트.
 	//DB_UpdateAccumulateSkillPoint(GetID(), FALSE, point) ;
 	DB_UpdateAccumulateSkillPoint(GetID(), byForced, point) ;
 
-
-	// 071114 Â¿ÃµÃÃ. Â·ÃÂ±Ã
+	// 071114 웅주. 로그
 	{
 		const SKILL_BASE emptyData = { 0 };
 
@@ -1296,25 +1278,25 @@ DWORD CPlayer::GetSkillPoint()
 
 void CPlayer::SetPlayerExpPoint(EXPTYPE point)
 {
-	// 071119 Â¿ÃµÃÃ, ÃÃÂ¹Ã¸Â¿Â¡ Â¿Â©Â·Â¯ Â´ÃÂ°Ã¨Â¸Â¦ Â·Â¹ÂºÂ§Â¾Ã·ÃÃ Â¼Ã¶ ÃÃÂµÂµÂ·Ã Â¼Ã¶ÃÂ¤ÃÃÂ°Ã­ ÃÃÂµÃ¥Â¸Â¦ Â´ÃÂ¼Ã¸ÃÂ­ÃÃ
+	// 071119 웅주, 한번에 여러 단계를 레벨업할 수 있도록 수정하고 코드를 단순화함
 
 	const LEVELTYPE& level = m_HeroCharacterInfo.Level;
-	
+
 	ASSERT( level <= MAX_CHARACTER_LEVEL_NUM );
 
 	if( level == MAX_CHARACTER_LEVEL_NUM )
 	{
 		const EXPTYPE& BeforeExp = m_HeroInfo.ExpPoint;
-		// MaxÂ·Â¹ÂºÂ§ÃÃÂ¶Â§ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÃ ÂµÃÃÃ¶ Â¾ÃÂ´Ã¸ Â¹Ã¶Â±Ã Â¼Ã¶ÃÂ¤
-		// Â°Ã¦ÃÃ¨ÃÂ¡ Â»Ã³Â½ÃÃÃÂ¶Â§Â¸Â¸ Â¸Â®ÃÃÂ½ÃÃÂ²Â´Ã.
+		// Max레벨일때 경험치 하락이 되지 않던 버그 수정
+		// 경험치 상승일때만 리턴시킨다.
 		if( point > BeforeExp )
 		{
 			return;
 		}
-	}	
-	
-	// Â°Ã¦ÃÃ¨ÃÂ¡Â°Â¡ Â´ÃÃÂ½ Â´ÃÂ°Ã¨Â¿Â¡Â¼Â­ Â¿Ã¤Â±Â¸ÃÃÂ´Ã Â°ÃÂºÂ¸Â´Ã ÃÃÂ¾Ã Â¸Â¹ÃÂ» Â¼Ã¶ ÃÃÃÂ¸Â¹ÃÂ·Ã,
-	// Â°Ã¨Â¼Ã ÃÂ¼ÃÂ©ÃÃÂ¼Â­ Â·Â¹ÂºÂ§Â¾Ã·ÃÃÃÃ
+	}
+
+	// 경험치가 다음 단계에서 요구하는 것보다 훨씬 많을 수 있으므로,
+	// 계속 체크해서 레벨업하자
 	{
 		EXPTYPE nextPoint = GAMERESRCMNGR->GetMaxExpPoint( level );
 
@@ -1350,7 +1332,7 @@ void CPlayer::AddPlayerExpPoint(EXPTYPE Exp)
 
 	EXPTYPE NewExp = 0 ;
 
-	// 090213 LYW --- Player : ÃÃÂ¹ÃÂ¸Â® Â¸Ã¢Â¹Ã¶ ÃÂ¢Â¼ÃÂ¿Â¡ ÂµÃ»Â¸Â¥ ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ ÃÃ»Â¿Ã«ÃÃÂ´Ã. ( Â¼Â­Â¹Ã¶ ÃÃ»Â¿Ã« Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Â³ÃÂ¤ )
+	// 090213 LYW --- Player : 패밀리 멤버 접속에 따른 추가 경험치를 적용한다. ( 서버 적용 경험치 설정 )
 	if( GetFamilyIdx() )
 	{
 		NewExp = GetPlayerExpPoint() + Exp + m_dweFamilyRewardExp ;
@@ -1369,7 +1351,7 @@ void CPlayer::AddPlayerExpPoint(EXPTYPE Exp)
 	msg.dwObjectID	= GetID() ;
 	msg.dweData1	= GetPlayerExpPoint() ;
 
-	// 090213 LYW --- Player : ÃÃÂ¹ÃÂ¸Â® Â¸Ã¢Â¹Ã¶ ÃÂ¢Â¼ÃÂ¿Â¡ ÂµÃ»Â¸Â¥ ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ ÃÃ»Â¿Ã«ÃÃÂ´Ã. ( ÃÃ¼Â¼ÃÂ¿Ã« Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Â³ÃÂ¤ )
+	// 090213 LYW --- Player : 패밀리 멤버 접속에 따른 추가 경험치를 적용한다. ( 전송용 경험치 설정 )
 	if( GetFamilyIdx() )
 	{
 		msg.dweData2	= Exp + m_dweFamilyRewardExp ;
@@ -1386,15 +1368,15 @@ void CPlayer::ReduceExpPoint(EXPTYPE minusExp, BYTE bLogType)
 {
 	LEVELTYPE minuslevel = 0;
 
-	// 080602 LYW --- Player : Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Ã¶ÃÂ¡ (__int32) Â¿Â¡Â¼Â­ (__int64) Â»Ã§ÃÃÃÃ®Â·Ã ÂºÂ¯Â°Ã¦ ÃÂ³Â¸Â®.
+	// 080602 LYW --- Player : 경험치 수치 (__int32) 에서 (__int64) 사이즈로 변경 처리.
 	//DWORD CurExp = GetPlayerExpPoint();
 	EXPTYPE CurExp = GetPlayerExpPoint();
 
-	if(GetLevel() <= 1 && CurExp < minusExp)	//Â¡Â¤Â©Ã¶Â¨Â¬Â¡Ã1AÂ¨Â¬ 0Â¡Â¾iAoÂ¢Â¬Â¢Â¬ Â¡Â¾iAIÂ¢Â¥U.
+	if(GetLevel() <= 1 && CurExp < minusExp)	//·¹º§1Aº 0±iAo¸¸ ±iAI´U.
 		minusExp = CurExp;
 
-	InsertLogExp( bLogType, GetID(), GetLevel(), minusExp, GetPlayerExpPoint(), m_MurdererKind, m_MurdererIDX, 0/*Â¾Ã®ÂºÃ´Â¸Â®ÃÂ¼ Â»Ã¨ÃÂ¦ - GetPlayerAbilityExpPoint()*/);
-	
+	InsertLogExp( bLogType, GetID(), GetLevel(), minusExp, GetPlayerExpPoint(), m_MurdererKind, m_MurdererIDX, 0/*어빌리티 삭제 - GetPlayerAbilityExpPoint()*/);
+
 	while(1)
 	{
 		if(CurExp < minusExp)
@@ -1402,8 +1384,8 @@ void CPlayer::ReduceExpPoint(EXPTYPE minusExp, BYTE bLogType)
 			minusExp -= CurExp;
 			++minuslevel;
 			CurExp = GAMERESRCMNGR->GetMaxExpPoint(GetLevel()-minuslevel) - 1;
-			ASSERT(minuslevel<2);	//EÂ¢Â´Â¨Ã¶AÂ©Ã¸Â¨Â£ CÂ¨ÂªÂ¨Ã¹Â¡Â©
-			if(minuslevel > 3)		//EÂ¢Â´Â¨Ã¶AÂ©Ã¸Â¨Â£ CIÂ¢Â¥A... Â©Ã¶Â¡Ã¬CNÂ¡Â¤cCA Â©Ã¶Â©Â¡AoÂ¢Â¯e
+			ASSERT(minuslevel<2);	//E¢´¨öA©ø¨£ C¨ª¨ù¡©
+			if(minuslevel > 3)		//E¢´¨öA©ø¨£ CI¢¥A... ©ö¡ìCN¡¤cCA ©ö©¡Ao¢¯e
 				break;
 		}
 		else
@@ -1446,7 +1428,7 @@ void CPlayer::OnEndObjectState(EObjectState State)
 
 }
 
-// 090204 LUJ, ÃÂ¸ÃÃÃÂ» Â¸Ã­ÃÂ®ÃÃ· ÃÃ
+// 090204 LUJ, 타입을 명확히 함
 eWeaponType CPlayer::GetWeaponEquipType()
 {
 	const ITEM_INFO* const pItemInfo = ITEMMGR->GetItemInfo( GetWearedWeapon() );
@@ -1454,7 +1436,7 @@ eWeaponType CPlayer::GetWeaponEquipType()
 	return pItemInfo ? eWeaponType( pItemInfo->WeaponType ) : eWeaponType_None;
 }
 
-// 080703 LUJ, Â¹ÃÃÂ¯ ÃÂ¸ÃÃÃÂ» enumÃÂ¸Â·Ã ÂºÂ¯Â°Ã¦
+// 080703 LUJ, 반환 타입을 enum으로 변경
 eWeaponAnimationType CPlayer::GetWeaponAniType()
 {
 	const ITEM_INFO* leftInfo	= ITEMMGR->GetItemInfo( GetWearedItemIdx( eWearedItem_Weapon ) );
@@ -1463,7 +1445,7 @@ eWeaponAnimationType CPlayer::GetWeaponAniType()
 	const eWeaponAnimationType	leftType	= eWeaponAnimationType( leftInfo ? leftInfo->WeaponAnimation : eWeaponAnimationType_None );
 	const eWeaponAnimationType	rightType	= eWeaponAnimationType( rightInfo ? rightInfo->WeaponAnimation : eWeaponAnimationType_None );
 
-	// 080703 LUJ, Â¾Ã§Â¼ÃÃÃ Â¹Â«Â±Ã¢Â°Â¡ Â´ÃÂ¸Â£Â¸Ã© ÃÃÂµÂµÂ·Ã¹Â°Â¡ Â¾ÃÂ´ÃÂ´Ã. Â¿ÃÂ¼ÃÂ¿Â¡ Â¹Â«Â±Ã¢Â¸Â¦ Â¾Ã ÂµÃ©Â¾ÃºÃÂ» Â°Ã¦Â¿Ã¬ÂµÂµ Â¸Â¶ÃÃ¹Â°Â¡ÃÃ¶ÃÃÂ´Ã.
+	// 080703 LUJ, 양손의 무기가 다르면 이도류가 아니다. 왼손에 무기를 안 들었을 경우도 마찬가지이다.
 	if( leftType != rightType ||
 		leftType == eWeaponAnimationType_None )
 	{
@@ -1485,9 +1467,9 @@ void CPlayer::ReviveAfterShowdown( BOOL bSendMsg )
 		msg.Protocol = MP_USERCONN_CHARACTER_REVIVE;
 		msg.dwObjectID = GetID();
 		msg.dwMoverID = GetID();
-	
+
 		msg.cpos.Compress(CCharMove::GetPosition(this));
-		
+
 		PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg));
 	}
 
@@ -1495,29 +1477,29 @@ void CPlayer::ReviveAfterShowdown( BOOL bSendMsg )
 
 	m_YYLifeRecoverTime.bStart = FALSE;
 	m_YYManaRecoverTime.bStart = FALSE;
-	SetLife( GetMaxLife() * 30 / 100 );	//Â¡Â§uoAÂ¡ÃÂ¢Ã§ Â¡Â§uiÂ¡ÃOÂ¢Â®iÂ¢Â®Â¨Â¡O COÂ¢Â®Â¨Ãºi.
+	SetLife( GetMaxLife() * 30 / 100 );	//¡§uoA¡Ë¢ç ¡§ui¡ËO¢®i¢®¨¡O CO¢®¨úi.
 }
-	
-// 080602 LYW --- Player : Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Ã¶ÃÂ¡ (__int32) Â¿Â¡Â¼Â­ (__int64) Â»Ã§ÃÃÃÃ®Â·Ã ÂºÂ¯Â°Ã¦ ÃÂ³Â¸Â®.
-//DWORD CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// ÃÂ¦ÃÃÂ¸Â® ÂºÃÃÂ°Â½Ã ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÂ» ÃÂ³Â¸Â®ÃÃÂ´Ã ÃÃÂ¼Ã¶.
-EXPTYPE CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// ÃÂ¦ÃÃÂ¸Â® ÂºÃÃÂ°Â½Ã ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÂ» ÃÂ³Â¸Â®ÃÃÂ´Ã ÃÃÂ¼Ã¶.
+
+// 080602 LYW --- Player : 경험치 수치 (__int32) 에서 (__int64) 사이즈로 변경 처리.
+//DWORD CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// 제자리 부활시 추가 경험치 하락을 처리하는 함수.
+EXPTYPE CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// 제자리 부활시 추가 경험치 하락을 처리하는 함수.
 {
-	// desc_hseos_ÂµÂ¥ÃÃÃÂ® ÃÂ¸_01
-	// S ÂµÂ¥ÃÃÃÂ® ÃÂ¸ ÃÃÂ°Â¡ added by hseos 2007.11.30
-	// ..ÃÂ§Â¸Â°ÃÃ¶ ÃÂ¸Â¿Â¡Â¼Â­ ÃÃÂ¾Ã®Â¼Â­ Â¸ÃÂ¾ÃÂ¿Ã´ÃÃ Â¶Â§Â´Ã ÃÃ¤Â³ÃÃÂ¼ Â¾Ã¸ÃÂ½
+	// desc_hseos_데이트 존_01
+	// S 데이트 존 추가 added by hseos 2007.11.30
+	// ..챌린지 존에서 죽어서 맵아웃일 때는 페널티 없음
 	if (g_csDateManager.IsChallengeZoneHere())
 	{
 		return FALSE;
 	}
-	// E ÂµÂ¥ÃÃÃÂ® ÃÂ¸ ÃÃÂ°Â¡ added by hseos 2007.11.30
+	// E 데이트 존 추가 added by hseos 2007.11.30
 
-	// Â±Ã¦ÃÂ® ÃÃ¤Â³ÃÂ¸ÃÃÂ®Â½Ã ÃÃÃÂ»Â°Ã¦Â¿Ã¬ ÃÃÂ³ÃÃÂ¼ Â¾Ã¸ÃÂ½.
+	// 길트 토너먼트시 죽을경우 패널티 없음.
 	if( g_pServerSystem->GetMapNum() == GTMAPNUM)
 	{
 		return FALSE;
 	}
 
-	DWORD PenaltyNum = 0 ;														// ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÂ» 2%Â·Ã Â°Ã­ÃÂ¤ÃÃÂ´Ã.
+	DWORD PenaltyNum = 0 ;														// 추가 경험치 하락을 2%로 고정한다.
 
 	if( bAdditionPenalty )
 	{
@@ -1527,8 +1509,8 @@ EXPTYPE CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// ÃÂ¦ÃÃ
 	{
 		PenaltyNum = random(1, 3) ;
 	}
-	
-	// 071217 KTH --- StatusÂ¿Â¡ ProtectExpÃÃ ÃÂ¿Â°ÃºÂ°Â¡ ÃÂ¸ÃÃ§ÃÃÂ¸Ã© Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â°Â¨Â¼Ã Â½ÃÃÂ°ÃÃ¶ Â¾ÃÂ´ÃÂ´Ã.//
+
+	// 071217 KTH --- Status에 ProtectExp의 효과가 존재하면 경험치를 감소 시키지 않는다.//
 	Status* pStatus;
 	pStatus = this->GetBuffStatus();
 
@@ -1538,87 +1520,86 @@ EXPTYPE CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// ÃÂ¦ÃÃ
 	}
 	//////////////////////////////////////////////////////////////////////////////////////
 
-	LEVELTYPE CurLevel = GetLevel() ;											// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ ÃÃ¶ÃÃ§ Â·Â¹ÂºÂ§ÃÂ» Â±Â¸ÃÃÂ´Ã.
+	LEVELTYPE CurLevel = GetLevel() ;											// 플레이어의 현재 레벨을 구한다.
 
-	EXPTYPE CurExp	= GetPlayerExpPoint() ;										// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ ÃÃ¶ÃÃ§ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã.
-	
-	EXPTYPE GoalExp	= GAMERESRCMNGR->GetMaxExpPoint(CurLevel) ;					// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â·Â¹ÂºÂ§Â¾Ã· Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã. 
+	EXPTYPE CurExp	= GetPlayerExpPoint() ;										// 플레이어의 현재 경험치를 구한다.
 
-	//---KES CHECK : GoalExpÂ´Ã Â¸ÃÂ¿Ã¬ ÃÂ« Â¼Ã¶ÃÃÂ´Ã. * PeanltyNumÃÂ» ÃÃÃÂ» Â°Ã¦Â¿Ã¬ DWORDÂ¸Â¦ Â³ÃÂ¾Ã®Â°Â¥ Â¼Ã¶ ÃÃÂ´Ã.
-	// 080602 LYW --- Player : Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Ã¶ÃÂ¡ (__int32) Â¿Â¡Â¼Â­ (__int64) Â»Ã§ÃÃÃÃ®Â·Ã ÂºÂ¯Â°Ã¦ ÃÂ³Â¸Â®.
-	//DWORD dwExpA = GoalExp * PenaltyNum ;										// ÃÃÂ³ÃÃÂ¼ Â¼Ã¶ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã.
-	EXPTYPE dwExpA = GoalExp * PenaltyNum ;										// ÃÃÂ³ÃÃÂ¼ Â¼Ã¶ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã.
-	
-	EXPTYPE PenaltyExp = (EXPTYPE)(dwExpA / 100) ;								// ÃÃÂ³ÃÃÂ¼ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã.
+	EXPTYPE GoalExp	= GAMERESRCMNGR->GetMaxExpPoint(CurLevel) ;					// 플레이어의 레벨업 경험치를 구한다.
 
-	// 080602 LYW --- Player : Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Ã¶ÃÂ¡ (__int32) Â¿Â¡Â¼Â­ (__int64) Â»Ã§ÃÃÃÃ®Â·Ã ÂºÂ¯Â°Ã¦ ÃÂ³Â¸Â®.
-	//DWORD dwExp = 0 ;															// ÃÃ¼Â¼ÃÃÃ Â°Ã¦ÃÃ¨ÃÂ¡ ÂºÂ¯Â¼Ã¶Â¸Â¦ Â¼Â±Â¾Ã°ÃÃÂ°Ã­ 0ÃÂ¸Â·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-	EXPTYPE dwExp = 0 ;															// ÃÃ¼Â¼ÃÃÃ Â°Ã¦ÃÃ¨ÃÂ¡ ÂºÂ¯Â¼Ã¶Â¸Â¦ Â¼Â±Â¾Ã°ÃÃÂ°Ã­ 0ÃÂ¸Â·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+	//---KES CHECK : GoalExp는 매우 큰 수이다. * PeanltyNum을 했을 경우 DWORD를 넘어갈 수 있다.
+	// 080602 LYW --- Player : 경험치 수치 (__int32) 에서 (__int64) 사이즈로 변경 처리.
+	//DWORD dwExpA = GoalExp * PenaltyNum ;										// 패널티 수치를 구한다.
+	EXPTYPE dwExpA = GoalExp * PenaltyNum ;										// 패널티 수치를 구한다.
 
-	BOOL bLevelDown = FALSE ;													// Â·Â¹ÂºÂ§ Â´ÃÂ¿Ã®Â¿Â©ÂºÃ ÂºÂ¯Â¼Ã¶Â¸Â¦ Â¼Â±Â¾Ã°ÃÃÂ°Ã­ FALSE Â¼Â¼ÃÃÃÂ» ÃÃÂ´Ã.
+	EXPTYPE PenaltyExp = (EXPTYPE)(dwExpA / 100) ;								// 패널티 경험치를 구한다.
 
-	if( CurExp >= PenaltyExp )													// ÃÃ¶ÃÃ§ Â°Ã¦ÃÃ¨ÃÂ¡Â°Â¡ ÃÃÂ³ÃÃÂ¼ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ»Ã³ÃÃ Â°Ã¦Â¿Ã¬.
+	// 080602 LYW --- Player : 경험치 수치 (__int32) 에서 (__int64) 사이즈로 변경 처리.
+	//DWORD dwExp = 0 ;															// 전송할 경험치 변수를 선언하고 0으로 세팅한다.
+	EXPTYPE dwExp = 0 ;															// 전송할 경험치 변수를 선언하고 0으로 세팅한다.
+
+	BOOL bLevelDown = FALSE ;													// 레벨 다운여부 변수를 선언하고 FALSE 세팅을 한다.
+
+	if( CurExp >= PenaltyExp )													// 현재 경험치가 패널티 경험치 이상일 경우.
 	{
-		dwExp = CurExp - PenaltyExp ;											// ÃÃ¼Â¼ÃÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+		dwExp = CurExp - PenaltyExp ;											// 전송할 경험치를 세팅한다.
 
-		ASSERT( dwExp >= 0 ) ;													// Â°Ã¦ÃÃ¨ÃÂ¡Â´Ã 0ÃÃÂ»Ã³ÃÃÂ¾Ã®Â¾ÃÂ¸Â¸ ÃÃÂ´Ã.
+		ASSERT( dwExp >= 0 ) ;													// 경험치는 0이상이어야만 한다.
 
 		SetPlayerExpPoint( dwExp ) ;
 
 		MSG_DWORDEX3 msg ;
 
-		msg.Category	= MP_USERCONN ;											// ÃÂ«ÃÃÂ°Ã­Â¸Â®Â¸Â¦ MP_USERCONNÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.Protocol	= MP_USERCONN_CHARACTER_DOWNEXP_NOTICE ;				// ÃÃÂ·ÃÃÃ¤ÃÃÃÂ» Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÂ¸Â·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dwObjectID	= GetID() ;												// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â¾ÃÃÃÂµÃ°Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dweData1	= (DWORD)PenaltyNum ;									// ÃÃÂ³ÃÃÂ¼ Â¼Ã¶ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dweData2	= dwExp ;												// ÃÃ¼Â¼ÃÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+		msg.Category	= MP_USERCONN ;											// 카테고리를 MP_USERCONN로 세팅한다.
+		msg.Protocol	= MP_USERCONN_CHARACTER_DOWNEXP_NOTICE ;				// 프로토콜을 경험치 하락으로 세팅한다.
+		msg.dwObjectID	= GetID() ;												// 플레이어의 아이디를 세팅한다.
+		msg.dweData1	= (DWORD)PenaltyNum ;									// 패널티 수치를 세팅한다.
+		msg.dweData2	= dwExp ;												// 전송할 경험치를 세팅한다.
 
 		if( bAdditionPenalty )
 		{
-			msg.dweData3		= TRUE ;												// ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ Â¿Â©ÂºÃÂ¸Â¦ TRUEÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+			msg.dweData3		= TRUE ;												// 추가 경험치 하락 여부를 TRUE로 세팅한다.
 		}
 		else
 		{
-			msg.dweData3		= FALSE ;												// ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ Â¿Â©ÂºÃÂ¸Â¦ FALSEÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+			msg.dweData3		= FALSE ;												// 추가 경험치 하락 여부를 FALSE로 세팅한다.
 		}
 
-		SendMsg(&msg, sizeof(msg)) ;											// ÃÃÂ·Â¹ÃÃÂ¾Ã®Â¿Â¡Â°Ã Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ ÃÃ¼Â¼ÃÃÃÂ´Ã.
+		SendMsg(&msg, sizeof(msg)) ;											// 플레이어에게 메시지를 전송한다.
 	}
-	else																		// ÃÃ¶ÃÃ§ ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â°Â¡ ÃÃÂ³ÃÃÂ¼ Â°Ã¦ÃÃ¨ÃÂ¡ÂºÂ¸Â´Ã ÃÃÃÂ»Â°Ã¦Â¿Ã¬.
+	else																		// 현재 플레이어의 경험치가 패널티 경험치보다 작을경우.
 	{
-		bLevelDown = TRUE ;														// Â·Â¹ÂºÂ§ Â´ÃÂ¿Ã® Â¿Â©ÂºÃÂ¸Â¦ TRUEÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+		bLevelDown = TRUE ;														// 레벨 다운 여부를 TRUE로 세팅한다.
 
-		dwExp = PenaltyExp - CurExp ;											// ÃÃ¼Â¼ÃÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+		dwExp = PenaltyExp - CurExp ;											// 전송할 경험치를 세팅한다.
 
-		ASSERT( dwExp >= 0 ) ;													// Â°Ã¦ÃÃ¨ÃÂ¡Â´Ã 0ÃÃÂ»Ã³ÃÃÂ¾Ã®Â¾ÃÂ¸Â¸ ÃÃÂ´Ã.
+		ASSERT( dwExp >= 0 ) ;													// 경험치는 0이상이어야만 한다.
 
-		GoalExp = GAMERESRCMNGR->GetMaxExpPoint(CurLevel-1) ;					// ÃÃÂ´ÃÂ°Ã¨ Â³Â·ÃÂº Â·Â¹ÂºÂ§ÃÃ Â·Â¹ÂºÂ§Â¾Ã· Â¸Ã±ÃÂ¥ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â±Â¸ÃÃÂ´Ã.
-		SetLevel( CurLevel -1 ) ;												// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â·Â¹ÂºÂ§ÃÂ» Â´ÃÂ¿Ã®ÃÃ Â·Â¹ÂºÂ§Â·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-		SetPlayerExpPoint(GoalExp-dwExp) ;										// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+		GoalExp = GAMERESRCMNGR->GetMaxExpPoint(CurLevel-1) ;					// 한단계 낮은 레벨의 레벨업 목표 경험치를 구한다.
+		SetLevel( CurLevel -1 ) ;												// 플레이어의 레벨을 다운한 레벨로 세팅한다.
+		SetPlayerExpPoint(GoalExp-dwExp) ;										// 플레이어의 경험치를 세팅한다.
 
 		MSG_DWORDEX4 msg ;
 
-		msg.Category	= MP_USERCONN ;											// ÃÂ«ÃÃÂ°Ã­Â¸Â®Â¸Â¦ MP_USERCONNÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.Protocol	= MP_USERCONN_CHARACTER_DOWNLEVEL_NOTICE ;				// ÃÃÂ·ÃÃÃ¤ÃÃÃÂ» Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ÃÂ¸Â·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dwObjectID	= GetID() ;												// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â¾ÃÃÃÂµÃ°Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dweData1	= (DWORDEX)GetLevel() ;									// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â·Â¹ÂºÂ§ÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dweData2	= GoalExp-dwExp ;										// ÃÃÂ·Â¹ÃÃÂ¾Ã®ÃÃ Â°Ã¦ÃÃ¨ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-		msg.dweData3	= (DWORDEX)PenaltyNum ;									// ÃÃÂ³ÃÃÂ¼ Â¼Ã¶ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-
+		msg.Category	= MP_USERCONN ;											// 카테고리를 MP_USERCONN로 세팅한다.
+		msg.Protocol	= MP_USERCONN_CHARACTER_DOWNLEVEL_NOTICE ;				// 프로토콜을 경험치 하락으로 세팅한다.
+		msg.dwObjectID	= GetID() ;												// 플레이어의 아이디를 세팅한다.
+		msg.dweData1	= (DWORDEX)GetLevel() ;									// 플레이어의 레벨을 세팅한다.
+		msg.dweData2	= GoalExp-dwExp ;										// 플레이어의 경험치를 세팅한다.
+		msg.dweData3	= (DWORDEX)PenaltyNum ;									// 패널티 수치를 세팅한다.
 
 		if( bAdditionPenalty )
 		{
-			msg.dweData4		= TRUE ;												// ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ Â¿Â©ÂºÃÂ¸Â¦ TRUEÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+			msg.dweData4		= TRUE ;												// 추가 경험치 하락 여부를 TRUE로 세팅한다.
 		}
 		else
 		{
-			msg.dweData4		= FALSE ;												// ÃÃÂ°Â¡ Â°Ã¦ÃÃ¨ÃÂ¡ ÃÃÂ¶Ã´ Â¿Â©ÂºÃÂ¸Â¦ FALSEÂ·Ã Â¼Â¼ÃÃÃÃÂ´Ã.
+			msg.dweData4		= FALSE ;												// 추가 경험치 하락 여부를 FALSE로 세팅한다.
 		}
 
-		SendMsg(&msg, sizeof(msg)) ;											// ÃÃÂ·Â¹ÃÃÂ¾Ã®Â¿Â¡Â°Ã Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ ÃÃ¼Â¼ÃÃÃÂ´Ã.
+		SendMsg(&msg, sizeof(msg)) ;											// 플레이어에게 메시지를 전송한다.
 	}
 
-	// 080414 LUJ, Â°Ã¦ÃÃ¨ÃÂ¡ Â¼ÃÂ½Ã Â¶Â§ Â¼ÃÂ½ÃÂµÃ Â°Ã¦ÃÃ¨ÃÂ¡ Â¸Â¸ÃÂ­ Â·ÃÂ±ÃÂ¸Â¦ Â³Â²Â±Ã¤Â´Ã
+	// 080414 LUJ, 경험치 손실 때 손실된 경험치 만큼 로그를 남긴다
 	InsertLogExp(
 		eExpLog_LosebyRevivePresent,
 		GetID(),
@@ -1632,9 +1613,8 @@ EXPTYPE CPlayer::RevivePenalty(BOOL bAdditionPenalty)								// ÃÂ¦ÃÃ
 	return PenaltyExp;
 }
 
-
 void CPlayer::RevivePresentSpot()
-{	
+{
 	if(GetState() != eObjectState_Die)
 	{
 		ASSERT(0);
@@ -1647,7 +1627,7 @@ void CPlayer::RevivePresentSpot()
 		return;
 	}
 
-	if( LOOTINGMGR->IsLootedPlayer( GetID() ) )	//Â¢Â®Â¢Â´cÂ¡Â§Â¢Â®AAÂ¨ÃÂ¡Ã¾Â¡Ã?Â¢Â®I
+	if( LOOTINGMGR->IsLootedPlayer( GetID() ) )	//¢®¢´c¡§¢®AA¨Ï¡þ¡Ë?¢®I
 	{
 		MSG_BYTE msg;
 		msg.Category	= MP_USERCONN;
@@ -1668,7 +1648,7 @@ void CPlayer::RevivePresentSpot()
 
 		return;
 	}
-	// 100111 LUJ, ÂºÃÃÂ° ÃÃÂ·Â¡Â±ÃÂ¿Â¡ ÂµÃ»Â¶Ã³ ÂºÃÃÂ° ÂºÃÂ°Â¡Â´ÃÃÃ Â¼Ã¶ÂµÂµ ÃÃÂ´Ã
+	// 100111 LUJ, 부활 플래그에 따라 부활 불가능할 수도 있다
 	else if(ReviveFlagTown == mReviveFlag)
 	{
 		MSG_BYTE message;
@@ -1690,9 +1670,9 @@ void CPlayer::RevivePresentSpot()
 	msg.Protocol = MP_USERCONN_CHARACTER_REVIVE;
 	msg.dwObjectID = GetID();
 	msg.dwMoverID = GetID();
-	
+
 	msg.cpos.Compress(CCharMove::GetPosition(this));
-		
+
 	PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg));
 
 	LEVELTYPE curLevel = GetLevel() ;
@@ -1702,16 +1682,16 @@ void CPlayer::RevivePresentSpot()
 		RevivePenalty(FALSE) ;
 // --- skr 20012020
 		//RevivePenalty(TRUE) ;
-	
+
 		if( !g_csDateManager.IsChallengeZoneHere() )
 		{
-			// 090204 LUJ, Â°Â¨Â¼Ã ÃÂ¸Â¼Ã¶Â¸Â¦ ÃÃ¶ÃÂ¤ÃÃ
+			// 090204 LUJ, 감소 회수를 지정함
 			RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
 		}
 	}
 
 	OBJECTSTATEMGR_OBJ->EndObjectState(this,eObjectState_Die);
-	
+
 	DWORD MaxLife = GetMaxLife();
 	DWORD MaxMana = GetMaxMana();
 
@@ -1722,11 +1702,11 @@ void CPlayer::RevivePresentSpot()
 	ReviveLife.Protocol = MP_CHAR_LIFE_ACK;
 	ReviveLife.dwObjectID = GetID();
 	ReviveLife.nData = my_max(1, nReviveVal);
-	SendMsg(&ReviveLife,sizeof(ReviveLife));			
-		
+	SendMsg(&ReviveLife,sizeof(ReviveLife));
+
 	SendLifeToParty(
 		nReviveVal);
-		
+
 	m_HeroCharacterInfo.Life = nReviveVal;
 
 	// 070417 LYW --- Player : Modified setting mana when the character revived.
@@ -1735,21 +1715,21 @@ void CPlayer::RevivePresentSpot()
 	{
 		SetMana(dwManaRate);
 	}
-	
+
 	m_YYLifeRecoverTime.bStart = FALSE;
 	m_YYManaRecoverTime.bStart = FALSE;
 	ClearMurderIdx();
 
 	m_bDieForGFW = FALSE;
-  
 // --- skr  12/01/2020
   SetRelifeStart();
+
 }
 
-// 080602 LYW --- Player : Â°Ã¦ÃÃ¨ÃÂ¡ Â¼Ã¶ÃÂ¡ (__int32) Â¿Â¡Â¼Â­ (__int64) Â»Ã§ÃÃÃÃ®Â·Ã ÂºÂ¯Â°Ã¦ ÃÂ³Â¸Â®.
+// 080602 LYW --- Player : 경험치 수치 (__int32) 에서 (__int64) 사이즈로 변경 처리.
 //DWORD CPlayer::ReviveBySkill()
 void CPlayer::ReviveBySkill( cSkillObject* pSkillObject )
-{	
+{
 	if( !pSkillObject )
 		return;
 
@@ -1765,7 +1745,7 @@ void CPlayer::ReviveBySkill( cSkillObject* pSkillObject )
 		return;
 	}
 
-	if( LOOTINGMGR->IsLootedPlayer( GetID() ) )	//Â¢Â®Â¢Â´cÂ¡Â§Â¢Â®AAÂ¨ÃÂ¡Ã¾Â¡Ã?Â¢Â®I
+	if( LOOTINGMGR->IsLootedPlayer( GetID() ) )	//¢®¢´c¡§¢®AA¨Ï¡þ¡Ë?¢®I
 	{
 		MSG_BYTE msg;
 		msg.Category	= MP_USERCONN;
@@ -1787,13 +1767,13 @@ void CPlayer::ReviveBySkill( cSkillObject* pSkillObject )
 		return;
 	}
 
-	// 100211 ONS ÂºÃÃÂ°Â´Ã«Â»Ã³Â¿Â¡Â°Ã ÂºÃÃÂ°Â¿Â©ÂºÃÂ¸Â¦ Â¹Â¯Â´ÃÂ´Ã.
-	// ÂºÃÃÂ°Â½ÂºÃÂ³ÃÂ» Â¼Â³ÃÂ¤ÃÃÂ´Ã.
+	// 100211 ONS 부활대상에게 부활여부를 묻는다.
+	// 부활스킬을 설정한다.
 	SetCurResurrectIndex( pSkillObject->GetSkillIdx() );
-	
-	// Â½ÂºÃÂ³OperatorÃÃÂ¸Â§ÃÂ» ÃÃ¼Â¼ÃÃÃÂ´Ã.
+
+	// 스킬Operator이름을 전송한다.
 	CObject* pOperator = pSkillObject->GetOperator();
-	if( !pOperator || 
+	if( !pOperator ||
 		pOperator->GetObjectKind() != eObjectKind_Player )
 	{
 		return;
@@ -1808,7 +1788,7 @@ void CPlayer::ReviveBySkill( cSkillObject* pSkillObject )
 	SendMsg( &msg, sizeof(msg) );
 }
 
-// 100211 ONS ÂºÃÃÂ°Â´Ã«Â»Ã³ÃÃÂ°Â¡ Â¼Ã¶Â¶Ã´ÃÃ Â°Ã¦Â¿Ã¬ ÂºÃÃÂ°ÃÂ³Â¸Â®Â¸Â¦ Â½ÃÃÃ ÃÃÂ´Ã.
+// 100211 ONS 부활대상자가 수락한 경우 부활처리를 실행한다.
 EXPTYPE CPlayer::OnResurrect()
 {
 	EXPTYPE exp = 0;
@@ -1819,9 +1799,9 @@ EXPTYPE CPlayer::OnResurrect()
 	msg.Protocol = MP_USERCONN_CHARACTER_REVIVE;
 	msg.dwObjectID = GetID();
 	msg.dwMoverID = GetID();
-	
+
 	msg.cpos.Compress(CCharMove::GetPosition(this));
-		
+
 	PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg));
 
 	LEVELTYPE curLevel = GetLevel() ;
@@ -1832,13 +1812,13 @@ EXPTYPE CPlayer::OnResurrect()
 
 		if( !g_csDateManager.IsChallengeZoneHere() && g_pServerSystem->GetMapNum()!=GTMAPNUM)
 		{
-			// 090204 LUJ, Â°Â¨Â¼Ã ÃÂ¸Â¼Ã¶Â¸Â¦ ÃÃ¶ÃÂ¤ÃÃ
+			// 090204 LUJ, 감소 회수를 지정함
 			RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
 		}
 	}
 
 	OBJECTSTATEMGR_OBJ->EndObjectState(this,eObjectState_Die);
-	
+
 	DWORD MaxLife = GetMaxLife();
 	DWORD MaxMana = GetMaxMana();
 
@@ -1849,11 +1829,11 @@ EXPTYPE CPlayer::OnResurrect()
 	ReviveLife.Protocol = MP_CHAR_LIFE_ACK;
 	ReviveLife.dwObjectID = GetID();
 	ReviveLife.nData = my_max(1, nReviveVal);
-	SendMsg(&ReviveLife,sizeof(ReviveLife));			
-		
+	SendMsg(&ReviveLife,sizeof(ReviveLife));
+
 	SendLifeToParty(
 		nReviveVal);
-		
+
 	m_HeroCharacterInfo.Life = nReviveVal;
 
 	// 070417 LYW --- Player : Modified setting mana when the character revived.
@@ -1862,22 +1842,21 @@ EXPTYPE CPlayer::OnResurrect()
 	{
 		SetMana(dwManaRate);
 	}
-	
+
 	m_YYLifeRecoverTime.bStart = FALSE;
 	m_YYManaRecoverTime.bStart = FALSE;
 	ClearMurderIdx();
 
 	m_bDieForGFW = FALSE;
-  
 // --- skr  12/01/2020
   SetRelifeStart();
-  
+
 	return exp;
 }
 
 void CPlayer::ReviveLogIn()
-{	
-	// ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÂ°Â¡ Â¾ÃÂ´ÃÂ¸Ã©, ÂºÃÃÂ° Â½ÃÃÃ ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+{
+	// 캐릭터가 죽은 상태가 아니면, 부활 실패 처리를 한다.
 	if(GetState() != eObjectState_Die)
 	{
 		ASSERT(0) ;
@@ -1889,9 +1868,8 @@ void CPlayer::ReviveLogIn()
 
 		return ;
 	}
-	
 
-	// Â·Ã§ÃÃ Â»Ã³ÃÃÂ¶Ã³Â¸Ã©, ÂºÃÃÂ° Â½ÃÃÃÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 루팅 상태라면, 부활 실패처리를 한다.
 	if( LOOTINGMGR->IsLootedPlayer( GetID() ) )
 	{
 		MSG_BYTE msg ;
@@ -1903,8 +1881,7 @@ void CPlayer::ReviveLogIn()
 		return ;
 	}
 
-
-	// Â¾ÃÂ¿Ã´ÃÂ³Â¸Â®Â°Â¡ Â½ÃÃÃ ÂµÃÂ¾ÃºÃÂ¸Â¸Ã©, Â½ÃÃÃ ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 아웃처리가 시작 되었으면, 실패 처리를 한다.
 	if( IsExitStart() )
 	{
 		MSG_BYTE msg ;
@@ -1915,7 +1892,7 @@ void CPlayer::ReviveLogIn()
 
 		return ;
 	}
-	// 100111 LUJ, ÂºÃÃÂ° ÃÃÂ·Â¡Â±ÃÂ¿Â¡ ÂµÃ»Â¶Ã³ ÂºÃÃÂ° ÂºÃÂ°Â¡Â´ÃÃÃ Â¼Ã¶ÂµÂµ ÃÃÂ´Ã
+	// 100111 LUJ, 부활 플래그에 따라 부활 불가능할 수도 있다
 	else if(ReviveFlagHere == mReviveFlag)
 	{
 		MSG_BYTE message;
@@ -1931,7 +1908,7 @@ void CPlayer::ReviveLogIn()
 		return;
 	}
 
-	// Â°Ã¸Â¼Âº Â±Ã¦ÂµÃ¥ Â´Ã¸ÃÃ¼ÃÃÃÃ¶ ÃÂ®ÃÃÃÃÂ´Ã.
+	// 공성 길드 던전인지 확인한다.
 	if( SIEGEDUNGEONMGR->IsSiegeDungeon(g_pServerSystem->GetMapNum()) )
 	{
 		ReviveLogIn_GuildDungeon() ;
@@ -1942,34 +1919,28 @@ void CPlayer::ReviveLogIn()
 	}
 }
 
-
-
-
-
-// 081210 LYW --- Player : Â°Ã¸Â¼ÂºÃÃ¼ Â±Ã¦ÂµÃ¥ Â´Ã¸ÃÃ¼Â¿Â¡Â¼Â­ÃÃ ÂºÃÃÂ° Â¹Â®ÃÂ¦Â·Ã ÃÃÃÃ ÂµÃÂ°Â¡ÃÃ¶ ÃÃÂ¼Ã¶Â¸Â¦ ÃÃÂ°Â¡ÃÃÂ´Ã.
+// 081210 LYW --- Player : 공성전 길드 던전에서의 부활 문제로 인해 두가지 함수를 추가한다.
 //-------------------------------------------------------------------------------------------------
 //	NAME		: ReviveLogIn_Normal
-//	DESC		: ÃÃÂ¹ÃÃÃ»ÃÃ Â¾ÃÃÃ¼ÃÃ¶Â´Ã« ÂºÃÃÂ° ÃÃÂ¼Ã¶.
+//	DESC		: 일반적인 안전지대 부활 함수.
 //	PROGRAMMER	: Yongs Lee
 //	DATE		: December 10, 2008
 //-------------------------------------------------------------------------------------------------
 void CPlayer::ReviveLogIn_Normal()
 {
-	// ÂºÃÃÂ°ÃÂ¢ÃÃ ÃÃÂ¿Ã¤ÃÃÂ´ÃÂ°Ã­ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활창이 필요하다고 세팅한다.
 	m_bNeedRevive = TRUE ;
 
-
-	// ÂºÃÃÂ° Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활 메시지를 세팅한다.
 	MOVE_POS msg ;
 
 	msg.Category	= MP_USERCONN ;
-	msg.Protocol	= MP_USERCONN_CHARACTER_REVIVE ;
+	msg.Protocol	= MP_USERCONN_CHARACTER_REVIVE;
 
 	msg.dwObjectID	= GetID() ;
 	msg.dwMoverID	= GetID() ;
 
-
-	// ÂºÃÃÂ° ÃÂ§ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활 위치를 세팅한다.
 	VECTOR3* ppos ;
 	VECTOR3 pos ;
 
@@ -1991,38 +1962,34 @@ void CPlayer::ReviveLogIn_Normal()
 	pos.y	= 0 ;
 
 	msg.cpos.Compress(&pos) ;
-	
+
 	CCharMove::SetPosition(this,&pos) ;
 
 	PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg)) ;
-		
 
-	// PlayerÃÃ ÃÃÃÂ½ Â»Ã³ÃÃÂ¸Â¦ ÃÃÃÂ¦ÃÃÂ´Ã.
+	// Player의 죽음 상태를 해제한다.
 	OBJECTSTATEMGR_OBJ->EndObjectState(this,eObjectState_Die) ;
 
-
-	// ÂºÃÃÂ° ÃÃÂ³ÃÃÂ¼Â¸Â¦ ÃÃ»Â¿Ã«ÃÃÂ´Ã.
+	// 부활 패널티를 적용한다.
 	const LEVELTYPE curLevel = GetLevel() ;
-	
+
 	if(	curLevel >= 10 && !m_bDieForGFW && m_bNoExpPenaltyByPK == FALSE )
 	{
 		RevivePenalty(FALSE) ;
-		
+
 		if( !g_csDateManager.IsChallengeZoneHere() && g_pServerSystem->GetMapNum()!=GTMAPNUM )
 		{
-			// 090204 LUJ, Â°Â¨Â¼Ã ÃÂ¸Â¼Ã¶Â¸Â¦ ÃÃ¶ÃÂ¤ÃÃ
+			// 090204 LUJ, 감소 회수를 지정함
             RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
 		}
 	}
 
-
-	// Â±Ã¦ÂµÃ¥ ÃÃ¤Â³ÃÂ¸ÃÃÂ® Â¿Â¹Â¿Ã ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 길드 토너먼트 예외 처리를 한다.
 	m_bDieForGFW = FALSE ;
 	m_dwRespawnTimeOnGTMAP = 0 ;
 	m_dwImmortalTimeOnGTMAP = 0 ;
-	
 
-	// Â»Ã³ÃÂ²Â¿Â¡ ÂµÃ»Â¸Â¥ Â»Ã½Â¸Ã­Â·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 상황에 따른 생명력을 세팅한다.
 	DWORD CurLife = GetMaxLife() ;
 
 	int nReviveVal = 0 ;
@@ -2040,8 +2007,7 @@ void CPlayer::ReviveLogIn_Normal()
 
 	m_HeroCharacterInfo.Life = nReviveVal ;
 
-
-	// Â»Ã³ÃÂ²Â¿Â¡ ÂµÃ»Â¸Â¥ Â¸Â¶Â³ÂªÂ·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 상황에 따른 마나력을 세팅한다.
 	DWORD MaxMana = GetMaxMana() ;
 
 	DWORD dwManaRate = 0 ;
@@ -2056,20 +2022,18 @@ void CPlayer::ReviveLogIn_Normal()
 		}
 	}
 
-
-	// Â±Ã¦ÂµÃ¥ ÃÃ¤Â³ÃÂ¸ÃÃÂ® Â¿Â¹Â¿ÃÂ¸Â¦ ÃÂ³Â¸Â®ÃÃÂ´Ã.
+	// 길드 토너먼트 예외를 처리한다.
 	if(g_pServerSystem->GetMapNum() == GTMAPNUM)
 	{
 		WORD wCode = GetJobCodeForGT() ;
 		m_dwImmortalTimeOnGTMAP = GTMGR->GetImmortalTimeByClass(wCode) ;
 	}
 
-
-	// Â¹Â«ÃÃ»Â»Ã³ÃÃ ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 무적상태 처리를 한다.
 	OBJECTSTATEMGR_OBJ->StartObjectState(this,eObjectState_Immortal,0) ;
 	// 06.08.29. RaMa.
 	OBJECTSTATEMGR_OBJ->EndObjectState( this, eObjectState_Immortal, 30000 ) ;
-	
+
 	m_YYLifeRecoverTime.bStart = FALSE ;
 	m_YYManaRecoverTime.bStart = FALSE ;
 
@@ -2093,19 +2057,15 @@ void CPlayer::ReviveLogIn_Normal()
 	}
 
 	ClearMurderIdx();
-  
+
 // --- skr  12/01/2020
   SetRelifeStart();
-  
+
 }
-
-
-
-
 
 //-------------------------------------------------------------------------------------------------
 //	NAME		: ReviveLogIn_GuildDungeon
-//	DESC		: Â°Ã¸Â¼Âº Â±Ã¦ÂµÃ¥Â´Ã¸ÃÃ¼Â¿Â¡Â¼Â­ÃÃ Â¾ÃÃÃ¼ÃÃ¶Â´Ã« ÂºÃÃÂ° ÃÃÂ¼Ã¶.
+//	DESC		: 공성 길드던전에서의 안전지대 부활 함수.
 //	PROGRAMMER	: Yongs Lee
 //	DATE		: December 10, 2008
 //-------------------------------------------------------------------------------------------------
@@ -2113,21 +2073,19 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 {
 	BYTE byCheckRevivePoint = TRUE ;
 
-	// ÂºÃÃÂ°ÃÂ¢ÃÃ ÃÃÂ¿Ã¤ÃÃÂ´ÃÂ°Ã­ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활창이 필요하다고 세팅한다.
 	m_bNeedRevive = TRUE ;
 
-
-	// ÂºÃÃÂ° Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활 메시지를 세팅한다.
 	MOVE_POS msg ;
 
 	msg.Category	= MP_USERCONN ;
-	msg.Protocol	= MP_USERCONN_CHARACTER_REVIVE ;
+	msg.Protocol	= MP_USERCONN_CHARACTER_REVIVE;
 
 	msg.dwObjectID	= GetID() ;
 	msg.dwMoverID	= GetID() ;
 
-	
-	// PlayerÂ°Â¡ Â·Ã§Â½Â¨Â¼Âº Â±Ã¦ÂµÃ¥ Â¼ÃÂ¼ÃÃÃÃÃ¶ ÃÂ¦ÂºÃ¡Â¼Âº Â±Ã¦ÂµÃ¥ Â¼ÃÂ¼ÃÃÃÃÃ¶ ÃÂ®ÃÃÃÃÂ´Ã.
+	// Player가 루쉔성 길드 소속인지 제뷘성 길드 소속인지 확인한다.
 	VillageWarp* pRevivePoint	= NULL ;
 
 	DWORD dwGuildID				= GetGuildIdx() ;
@@ -2137,7 +2095,7 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 		sprintf( szMsg, "This player is not in guild! - %s,%d", GetObjectName(), GetID() ) ;
 		SIEGEWARFAREMGR->WriteLog(szMsg) ;
 
-		// 081217 LYW --- Player : Â°Ã¸Â¼Âº Â±Ã¦ÂµÃ¥ Â´Ã¸ÃÃ¼Â¿Â¡Â¼Â­ Â±Ã¦ÂµÃ¥ Â¼ÃÂ¼Ã Â¾Ã¸ÃÃ Â»Ã§Â¸ÃÂ½Ã, ÃÂ³Â¸Â¯ÃÃ Â¼Â±ÃÃ ÃÂ­Â¸Ã©ÃÂ¸Â·Ã ÃÃÂµÂ¿ÃÃÂ´Ã ÃÂ³Â¸Â® ÃÃÂ°Â¡.
+		// 081217 LYW --- Player : 공성 길드 던전에서 길드 소속 없이 사망시, 캐릭터 선택 화면으로 이동하는 처리 추가.
 		MSGBASE msg ;
 
 		msg.Category	= MP_SIEGEWARFARE ;
@@ -2153,12 +2111,12 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 	DWORD dwGuildID_Rushen		= SIEGEWARFAREMGR->GetCastleGuildIdx(eNeraCastle_Lusen) ;
 	DWORD dwGuildID_Zevyn		= SIEGEWARFAREMGR->GetCastleGuildIdx(eNeraCastle_Zebin) ;
 
-	// Â·Ã§Â½Â¨Â¼Âº Â±Ã¦ÂµÃ¥Â¶Ã³Â¸Ã©,
+	// 루쉔성 길드라면,
 	if( dwGuildID_Rushen == dwGuildID )
 	{
 		pRevivePoint = SIEGEWARFAREMGR->GetDGRP_Rushen() ;
 	}
-	// ÃÂ¦ÂºÃ¡Â¼Âº Â±Ã¦ÂµÃ¥Â¶Ã³Â¸Ã©,
+	// 제뷘성 길드라면,
 	else
 	{
 		if( dwGuildID_Zevyn == dwGuildID )
@@ -2168,11 +2126,11 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 		else
 		{
 			char szMsg[512] = {0, } ;
-			sprintf( szMsg, "Invalid guild idx! \n PLAYER_GUILD:%d / RUSHEN_GUILD:%d / ZEVYN_GUILD:%d", 
+			sprintf( szMsg, "Invalid guild idx! \n PLAYER_GUILD:%d / RUSHEN_GUILD:%d / ZEVYN_GUILD:%d",
 			dwGuildID, dwGuildID_Rushen, dwGuildID_Zevyn ) ;
 			SIEGEWARFAREMGR->WriteLog(szMsg) ;
 
-			// 081217 LYW --- Player : Â°Ã¸Â¼Âº Â±Ã¦ÂµÃ¥ Â´Ã¸ÃÃ¼Â¿Â¡Â¼Â­ Â±Ã¦ÂµÃ¥ Â¼ÃÂ¼Ã Â¾Ã¸ÃÃ Â»Ã§Â¸ÃÂ½Ã, ÃÂ³Â¸Â¯ÃÃ Â¼Â±ÃÃ ÃÂ­Â¸Ã©ÃÂ¸Â·Ã ÃÃÂµÂ¿ÃÃÂ´Ã ÃÂ³Â¸Â® ÃÃÂ°Â¡.
+			// 081217 LYW --- Player : 공성 길드 던전에서 길드 소속 없이 사망시, 캐릭터 선택 화면으로 이동하는 처리 추가.
 			MSGBASE msg ;
 
 			msg.Category	= MP_SIEGEWARFARE ;
@@ -2186,8 +2144,7 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 		}
 	}
 
-
-	// ÂºÃÃÂ° ÃÂ§ÃÂ¡Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 부활 위치를 세팅한다.
 	VECTOR3 pos ;
 	int temp ;
 
@@ -2196,7 +2153,7 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 		if( !pRevivePoint )
 		{
 			char szMsg[512] = {0, } ;
-			sprintf( szMsg, "Failed to receive dungeon revive point! \n PLAYER_GUILD:%d / RUSHEN_GUILD:%d / ZEVYN_GUILD:%d", 
+			sprintf( szMsg, "Failed to receive dungeon revive point! \n PLAYER_GUILD:%d / RUSHEN_GUILD:%d / ZEVYN_GUILD:%d",
 				dwGuildID, dwGuildID_Rushen, dwGuildID_Zevyn ) ;
 			SIEGEWARFAREMGR->WriteLog(szMsg) ;
 			return ;
@@ -2214,32 +2171,29 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 	}
 
 	msg.cpos.Compress(&pos) ;
-	
+
 	CCharMove::SetPosition(this,&pos) ;
 
 	PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg)) ;
-		
 
-	// PlayerÃÃ ÃÃÃÂ½ Â»Ã³ÃÃÂ¸Â¦ ÃÃÃÂ¦ÃÃÂ´Ã.
+	// Player의 죽음 상태를 해제한다.
 	OBJECTSTATEMGR_OBJ->EndObjectState(this,eObjectState_Die) ;
 
-
-	// ÂºÃÃÂ° ÃÃÂ³ÃÃÂ¼Â¸Â¦ ÃÃ»Â¿Ã«ÃÃÂ´Ã.
+	// 부활 패널티를 적용한다.
 	const LEVELTYPE curLevel = GetLevel() ;
-	
+
 	if(	curLevel >= 10 && !m_bDieForGFW && m_bNoExpPenaltyByPK == FALSE )
 	{
 		RevivePenalty(FALSE) ;
-		
+
 		if( !g_csDateManager.IsChallengeZoneHere() && g_pServerSystem->GetMapNum()!=GTMAPNUM )
 		{
-			// 090204 LUJ, Â°Â¨Â¼Ã ÃÂ¸Â¼Ã¶Â¸Â¦ ÃÃ¶ÃÂ¤ÃÃ
+			// 090204 LUJ, 감소 회수를 지정함
             RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
 		}
 	}
 
-
-	// Â»Ã³ÃÂ²Â¿Â¡ ÂµÃ»Â¸Â¥ Â»Ã½Â¸Ã­Â·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 상황에 따른 생명력을 세팅한다.
 	DWORD CurLife = GetMaxLife() ;
 	int nReviveVal = (int)(CurLife*0.3) ;
 
@@ -2252,8 +2206,7 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 
 	m_HeroCharacterInfo.Life = nReviveVal ;
 
-
-	// Â»Ã³ÃÂ²Â¿Â¡ ÂµÃ»Â¸Â¥ Â¸Â¶Â³ÂªÂ·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	// 상황에 따른 마나력을 세팅한다.
 	DWORD MaxMana = GetMaxMana() ;
 
 	DWORD dwManaRate = (DWORD)(MaxMana*0.3) ;
@@ -2262,11 +2215,10 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 		SetMana(dwManaRate) ;
 	}
 
-
-	// Â¹Â«ÃÃ»Â»Ã³ÃÃ ÃÂ³Â¸Â®Â¸Â¦ ÃÃÂ´Ã.
+	// 무적상태 처리를 한다.
 	OBJECTSTATEMGR_OBJ->StartObjectState(this,eObjectState_Immortal,0) ;
 	OBJECTSTATEMGR_OBJ->EndObjectState( this, eObjectState_Immortal, 30000 ) ;
-	
+
 	m_YYLifeRecoverTime.bStart = FALSE ;
 	m_YYManaRecoverTime.bStart = FALSE ;
 
@@ -2293,12 +2245,7 @@ void CPlayer::ReviveLogIn_GuildDungeon()
 
 // --- skr  12/01/2020
   SetRelifeStart();
-
 }
-
-
-
-
 
 void CPlayer::ReviveLogInPenelty()
 {
@@ -2307,33 +2254,33 @@ void CPlayer::ReviveLogInPenelty()
 		RevivePenalty(FALSE) ;
 // --- skr 20012020
 		//RevivePenalty(TRUE) ;
-		
+
 		if( !g_csDateManager.IsChallengeZoneHere() )
 		{
-			// 090204 LUJ, Â°Â¨Â¼Ã ÃÂ¸Â¼Ã¶Â¸Â¦ ÃÃ¶ÃÂ¤?			RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
+			// 090204 LUJ, 감소 회수를 지정?			RemoveBuffCount( eBuffSkillCountType_Dead, 1 );
 		}
 	}
 
 	DWORD CurLife = GetMaxLife();
 	DWORD CurMana = GetMaxMana();
 
-	// 080625 LYW --- Player : Â»Ã½Â¸Ã­Â·Ã Â¼Â¼ÃÃÃÂ» ÃÃÂ¶Ã³Â°Ã­ ÃÃÂ³Âª, ÃÂ³Â¸Â¯ÃÃÂ°Â¡ ÃÃÃÂº Â»Ã³ÃÃÃÃÂ±Ã¢ Â¶Â§Â¹Â®Â¿Â¡, 
-	// Â»Ã½Â¸Ã­Â·Ã Â¼Â¼ÃÃ ÃÃÂ¼Ã¶Â°Â¡ Â±Ã¢Â´ÃÃÂ» ÃÂ¦Â´Ã«Â·Ã ÃÃÃÃ¶ Â¾ÃÂ´ÃÂ´Ã. Â¶Â§Â¹Â®Â¿Â¡, Â°Â­ÃÂ¦Â·Ã Â»Ã½Â¸Ã­Â·ÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã 
-	// ÃÃÂ¼Ã¶Â·Ã ÂºÂ¯Â°Ã¦ÃÃÂ´Ã.
+	// 080625 LYW --- Player : 생명력 세팅을 하라고 하나, 캐릭터가 죽은 상태이기 때문에,
+	// 생명력 세팅 함수가 기능을 제대로 하지 않는다. 때문에, 강제로 생명력을 세팅하는
+	// 함수로 변경한다.
 	//SetLife((DWORD)(CurLife*0.3));
 	//SetMana(0);
 
-	// Â»Ã½Â¸Ã­Â·Ã Â¼Â¼ÃÃ.
+	// 생명력 세팅.
 	DWORD dwNewLife = 0 ;
-	// 080710 LYW --- Player : Â»Ã½Â¸Ã­Â·Ã ÃÂ¸ÂºÂ¹ 50%Â·Ã Â¼Ã¶ÃÂ¤.
+	// 080710 LYW --- Player : 생명력 회복 50%로 수정.
 	//dwNewLife = (DWORD)(CurLife * 0.3f) ;
 	dwNewLife = (DWORD)(CurLife * 0.5f) ;
 
 	SetLifeForce(dwNewLife, TRUE) ;
 
-	// Â¸Â¶Â³Âª Â¼Â¼ÃÃ.
+	// 마나 세팅.
 	DWORD dwNewMana = 0 ;
-	// 080710 LYW --- Player : Â¸Â¶Â³Âª ÃÂ¸ÂºÂ¹ 50%Â·Ã Â¼Ã¶ÃÂ¤.
+	// 080710 LYW --- Player : 마나 회복 50%로 수정.
 	//dwNewMana = (DWORD)(CurMana* 0.3f) ;
 	dwNewMana = (DWORD)(CurMana* 0.5f) ;
 
@@ -2341,7 +2288,6 @@ void CPlayer::ReviveLogInPenelty()
 
 	m_bDieForGFW = FALSE;
 }
-
 
 void CPlayer::DoDie(CObject* pAttacker)
 {
@@ -2397,11 +2343,11 @@ void CPlayer::DoDie(CObject* pAttacker)
 	else if(pAttacker->GetObjectKind() & eObjectKind_Monster )
 	{
 		m_MurdererKind = ((CMonster*)pAttacker)->GetMonsterKind();
-			
-		// 080616 LUJ, ÃÃÃÂ¤ÃÃ Â°Ã¦Â¿Ã¬Â¿Â¡Â´Ã ÃÃ¤Â³ÃÃÂ¼Â¸Â¦ ÃÃÃÃ¶ Â¾ÃÂµÂµÂ·Ã ÃÃÂ´Ã
+
+		// 080616 LUJ, 함정일 경우에는 페널티를 주지 않도록 한다
 		if( pAttacker->GetObjectKind() != eObjectKind_Trap )
 		{
-			//SW060831 Â¹Ã¦ÃÃ ÂºÃ±Â¹Â« Â½Ã //Â°Â­ÃÂ¦ ÃÂ¾Â·Ã¡Â½Ã ÃÂ¼ÃÂ© ÂºÂ¯Â¼Ã¶
+			//SW060831 방파 비무 시 //강제 종료시 체크 변수
 			SetPenaltyByDie(TRUE);
 		}
 
@@ -2423,8 +2369,8 @@ void CPlayer::DoDie(CObject* pAttacker)
 	PKMGR->DiePanelty( this, pAttacker );
 
 //---KES Aggro 070918
-//---Â¾Ã®Â±ÃÂ·Ã Â¸Â®Â½ÂºÃÂ® Â¸Â±Â¸Â®Â½Âº
-	RemoveAllAggroed();	//*ÃÃÃÃ: Â¾ÃÂ·Â¡ FollowMonsterListÃÃÃÂ¦ÃÃÂ±Ã¢ ÃÃÃÃ¼Â¿Â¡ ÃÃÃÃÂ¾Ã®Â¾Ã, Â´ÃÃÂ½ Â¾Ã®Â±ÃÂ·ÃÂ¸Â¦ ÃÂ¸Â°ÃÃÂ¸Â·Ã ÃÃ¢ÃÂ» Â¼Ã¶ ÃÃÂ´Ã.
+//---어그로 리스트 릴리스
+	RemoveAllAggroed();	//*주의: 아래 FollowMonsterList해제하기 이전에 해주어야, 다음 어그로를 타겟으로 잡을 수 있다.
 //-------------------
 
 	CMonster * pObject = NULL;
@@ -2435,7 +2381,7 @@ void CPlayer::DoDie(CObject* pAttacker)
 	}
 	m_FollowMonsterList.RemoveAll();
 
-	//---KES ÃÃÃÂ¸Â¸Ã© ÃÃÂµÂ¿ÃÂ» Â¸ÃÃÃ§ÃÃÂ¾Ã®Â¾Ã ÃÃÂ´Ã.
+	//---KES 죽으면 이동을 멈춰주어야 한다.
 	if( CCharMove::IsMoving(this) )
 	{
 		VECTOR3 pos;
@@ -2445,10 +2391,10 @@ void CPlayer::DoDie(CObject* pAttacker)
 
 	QUESTMAPMGR->DiePlayer( this );
 
-	// desc_hseos_ÂµÂ¥ÃÃÃÂ® ÃÂ¸_01
-	// S ÂµÂ¥ÃÃÃÂ® ÃÂ¸ ÃÃÂ°Â¡ added by hseos 2007.11.29
+	// desc_hseos_데이트 존_01
+	// S 데이트 존 추가 added by hseos 2007.11.29
 	g_csDateManager.SRV_EndChallengeZone(this, CSHDateManager::CHALLENGEZONE_END_ALL_DIE);
-	// E ÂµÂ¥ÃÃÃÂ® ÃÂ¸ ÃÃÂ°Â¡ added by hseos 2007.11.29
+	// E 데이트 존 추가 added by hseos 2007.11.29
 
 	// 080725 KTH
 	SIEGEWARFAREMGR->CancelWaterSeedUsing(this);
@@ -2464,7 +2410,7 @@ void CPlayer::DoDie(CObject* pAttacker)
 		}
 	}
 
-	// 081020 LYW --- Player : Â°Ã¸Â¼ÂºÃÃ ÃÂ³Â¸Â¯ÃÃ Â»Ã§Â¸ÃÂ½Ã, AÂ°Â¡ BÂ¸Â¦ ÃÃÂ¿Â´Â´ÃÂ´Ã Â¸Ã Â°Ã¸ÃÃ¶ ÂºÃªÂ·ÃÂµÃ¥ÃÂ³Â½ÂºÃÃ ÃÂ³Â¸Â® ÃÃÂ°Â¡. - Â¼ÃÂ°Â¡Â¶Ã·.
+	// 081020 LYW --- Player : 공성중 캐릭터 사망시, A가 B를 죽였다는 맵 공지 브로드캐스팅 처리 추가. - 송가람.
 	if( SIEGEWARFAREMGR->IsSiegeWarfareZone(g_pServerSystem->GetMapNum()) )
 	{
 		MSG_DWORD2 msg ;
@@ -2483,7 +2429,7 @@ void CPlayer::DoDie(CObject* pAttacker)
 	SetSummonedVehicle( 0 );
 	SetMountedVehicle( 0 );
 
-	// 100621 ShinJS Â»Ã§Â¸ÃÂ½Ã ÃÃ¶ÃÃ§ Â½ÃÃÃ¼ÃÃÃÃ Â½ÂºÃÂ³ÃÂ» ÃÃ«Â¼ÃÂ½ÃÃÂ²Â´Ã.
+	// 100621 ShinJS 사망시 현재 시전중인 스킬을 취소시킨다.
 	CancelCurrentCastingSkill( FALSE );
 }
 
@@ -2494,7 +2440,7 @@ float CPlayer::DoGetMoveSpeed()
 		return 0;
 	}
 
-	// 090422 ShinJS --- ÃÂ»Â°ÃÃÃ MasterÃÃÂ°Ã­ ÃÂ¾Â½ÃÃÃÃÃ Â°Ã¦Â¿Ã¬ ÃÂ»Â°ÃÃÃ ÃÃÂµÂ¿Â¼ÃÂµÂµ ÃÃÂ¿Ã«
+	// 090422 ShinJS --- 탈것의 Master이고 탑승중인 경우 탈것의 이동속도 이용
 	{
 		CObject* const vehicleObject = g_pUserTable->FindUser( GetSummonedVehicle() );
 
@@ -2507,7 +2453,7 @@ float CPlayer::DoGetMoveSpeed()
 
 	float speed = float( m_MoveInfo.MoveMode == eMoveMode_Run ? RUNSPEED : WALKSPEED );
 
-	// 080630 LUJ, Â¼Â¼ÃÂ® Â¾ÃÃÃÃÃ Â¼Ã¶ÃÂ¡Â°Â¡ ÃÃ»Â¿Ã«ÂµÃÂµÂµÂ·Ã ÃÃ
+	// 080630 LUJ, 세트 아이템 수치가 적용되도록 함
 	float addrateval = ( GetRateBuffStatus()->MoveSpeed + GetRatePassiveStatus()->MoveSpeed ) / 100.f + m_itemBaseStats.mMoveSpeed.mPercent + m_itemOptionStats.mMoveSpeed.mPercent + m_SetItemStats.mMoveSpeed.mPercent;
 	float addval = GetBuffStatus()->MoveSpeed + GetPassiveStatus()->MoveSpeed + m_itemBaseStats.mMoveSpeed.mPlus + m_itemOptionStats.mMoveSpeed.mPlus + m_SetItemStats.mMoveSpeed.mPlus;
 
@@ -2517,7 +2463,6 @@ float CPlayer::DoGetMoveSpeed()
 	return my_max( 0, speed );
 }
 
-
 void CPlayer::SetInitedGrid()
 {
 	MSGBASE msg;
@@ -2526,7 +2471,7 @@ void CPlayer::SetInitedGrid()
 	SendMsg(&msg,sizeof(msg));
 
 	CGridUnit::SetInitedGrid();
-	
+
 	CBattle* pBattle = BATTLESYSTEM->GetBattle(this->GetBattleID());
 	if(pBattle && pBattle->GetBattleKind() != eBATTLE_KIND_NONE)
 		BATTLESYSTEM->AddObjectToBattle(pBattle, this);
@@ -2541,19 +2486,19 @@ void CPlayer::SetInitedGrid()
 		QUESTMGR->AddQuestEvent( this, &QEvent );
 	}
 
-	// 090316 LUJ, ÃÂ»Â°ÃÂ¿Â¡ ÃÂ¾Â½ÃÃÃ ÃÂ¤Â·Ã Â¸Ã ÃÃÂµÂ¿ÃÃ Â°Ã¦Â¿Ã¬ ÃÃÂµÂ¿ÃÂ¸Â·Ã ÃÃÂ¿Ã¬Â±Ã¢ ÃÂ§ÃÃ ÃÂ¤ÂºÂ¸Â¸Â¦ Â°Â¡ÃÂ®Â¿ÃÂ´Ã
+	// 090316 LUJ, 탈것에 탑승한 채로 맵 이동한 경우 자동으로 태우기 위해 정보를 가져온다
 	LoadVehicleFromDb( GetID(), g_pServerSystem->GetMapNum() );
 }
-// RaMa - 04.11.10    -> ShopItemOption ÃÃÂ°Â¡   AvatarOptionÃÃÂ°Â¡(05.02.16)
+// RaMa - 04.11.10    -> ShopItemOption 추가   AvatarOption추가(05.02.16)
 DWORD CPlayer::DoGetCritical()
-{	
+{
 	return (DWORD)mCriticalRate;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// 06. 07 Â³Â»Â°Ã¸ ÃÃ»ÃÃ(ÃÃÂ°Ã) - ÃÃÂ¿ÂµÃÃ
+// 06. 07 내공 적중(일격) - 이영준
 DWORD CPlayer::DoGetDecisive()
-{	
+{
 	return (DWORD)mCriticalRate;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2582,7 +2527,7 @@ void CPlayer::DoDamage(CObject* pAttacker,RESULTINFO* pDamageInfo,DWORD beforeLi
 		EndBuffSkillByStatus( eStatusKind_Slip );
 	}
 
-	// 090109 LUJ, ÃÃÂ°Ã Â½Ã ÃÂ³Â½ÂºÃÃ ÃÃÃÃ Â½ÂºÃÂ³ÃÃ ÃÃ«Â¼ÃÂµÃ Â¼Ã¶ ÃÃÂ´Ã
+	// 090109 LUJ, 피격 시 캐스팅 중인 스킬이 취소될 수 있다
 	CancelCurrentCastingSkill( TRUE );
 }
 
@@ -2599,7 +2544,7 @@ void CPlayer::DoManaDamage( CObject* pAttacker, RESULTINFO* pDamageInfo, DWORD b
 		EndBuffSkillByStatus( eStatusKind_Slip );
 	}
 
-	// 090109 LUJ, ÃÃÂ°Ã Â½Ã ÃÂ³Â½ÂºÃÃ ÃÃÃÃ Â½ÂºÃÂ³ÃÃ ÃÃ«Â¼ÃÂµÃ Â¼Ã¶ ÃÃÂ´Ã
+	// 090109 LUJ, 피격 시 캐스팅 중인 스킬이 취소될 수 있다
 	CancelCurrentCastingSkill( TRUE );
 }
 
@@ -2609,7 +2554,7 @@ void CPlayer::InitBaseObjectInfo(BASEOBJECT_INFO* pBaseInfo)
 	memcpy(&m_BaseObjectInfo,pBaseInfo,sizeof(BASEOBJECT_INFO));
 }
 
-/* Â¡Â§oCÂ¡Â§Â¡Ã¾?EÂ¢Â®Â¨ÃÂ¢Â®Â¢Â´Â¡Ãc Return */
+/* ¡§oC¡§¡þ?E¢®¨Ï¢®¢´¡Ëc Return */
 MONEYTYPE CPlayer::SetMoney( MONEYTYPE ChangeValue, BYTE bOper, BYTE MsgFlag, eITEMTABLE tableIdx, BYTE LogType, DWORD TargetIdx )
 {
 	CPurse* pPurse = m_ItemContainer.GetPurse(tableIdx);
@@ -2634,7 +2579,7 @@ MONEYTYPE CPlayer::SetMoney( MONEYTYPE ChangeValue, BYTE bOper, BYTE MsgFlag, eI
 	return Real;
 }
 
-/* Â¡ÃiÂ¢Â®Â¢Â´; Â¨ÃÂ©ÂªO; AÂ¨ÃÂ¢Â®Â¡Â§Â¡Ã¾Â¡Â§Â¡ÃCN Â¢Â®Â¨Â¡Â¨ÃÂ¨Â£Â¢Â®Â¨Â¡Â¢Â®IAI AOÂ¡ÃÂ¡ÃAAoÂ¡ÃÂ¡Ã¾| Â¨Ão?Â¡ÃÂ¡ÃAÂ¡ÃÂ¡ÃU.*/
+/* ¡Íi¢®¢´; ¨Ï©ªO; A¨Ï¢®¡§¡þ¡§¡ËCN ¢®¨¡¨Ï¨£¢®¨¡¢®IAI AO¡Ë¡ÍAAo¡Ë¡þ| ¨Ïo?¡Ë¡ÍA¡Ë¡ÍU.*/
 BOOL CPlayer::IsEnoughAdditionMoney(MONEYTYPE money, eITEMTABLE tableIdx )
 {
 	CPurse* pPurse = m_ItemContainer.GetPurse(tableIdx);
@@ -2642,7 +2587,6 @@ BOOL CPlayer::IsEnoughAdditionMoney(MONEYTYPE money, eITEMTABLE tableIdx )
 
 	return pPurse->IsAdditionEnough( money );
 }
-
 
 MONEYTYPE CPlayer::GetMaxPurseMoney(eITEMTABLE TableIdx)
 {
@@ -2653,7 +2597,7 @@ MONEYTYPE CPlayer::GetMaxPurseMoney(eITEMTABLE TableIdx)
 
 void CPlayer::SetMaxPurseMoney(eITEMTABLE TableIdx, DWORD MaxMoney)
 {
-	//CÂ¢Â®IÂ¢Â®Â¨ÃºÂ¨Ão; Â¢Â®icÂ¡ÃÂ¡Ã¾e Â¡ÃiÂ¢Â®Â¢Â´ Â¡Â§Â¡Ã¾Â¡ÃÂ¡Ã¾Â¢Â®Â¨Â¡u Â¡ÃÂ¡Ã¾Â¡Â§Â¢Â®Â¡Â§oÂ¡Â§Â¡Ã¾AÂ¡ÃÂ¢Ã§Â¢Â®Â¨Â¡Â¡ÃÂ¢Ã§ Â¡ÃÂ¡ÃAÂ¡Â§uiÂ¨ÃÂ©ÂªÂ¢Â®Â¨ÃÂ¡ÃÂ¡ÃU.
+	//C¢®I¢®¨ú¨Ïo; ¢®ic¡Ë¡þe ¡Íi¢®¢´ ¡§¡þ¡Ë¡þ¢®¨¡u ¡Ë¡þ¡§¢®¡§o¡§¡þA¡Ë¢ç¢®¨¡¡Ë¢ç ¡Ë¡ÍA¡§ui¨Ï©ª¢®¨Ï¡Ë¡ÍU.
 	if(TableIdx != eItemTable_Storage)
 	{
 		ASSERT(0);
@@ -2681,10 +2625,10 @@ BOOL CPlayer::SetQuestState(DWORD QuestIdx, QSTATETYPE value)
 	CQuestBase* pQuest;
 	pQuest = m_QuestList.GetData(QuestIdx);
 
-	if( !pQuest ) 
+	if( !pQuest )
 	{
 //		char buff[256] = {0,};
-//		sprintf(buff, "Â¡Ã?aÂ¢Â®Â¨ÃºaÂ¡ÃÂ¡ÃA AuÂ¡Â§oÂ¡Â§Â¡Ã¾Â¡Â§Â¢Â®Â¡ÃcÂ¢Â®Â¨Â¡Â¡ÃÂ¢Ã§ xAc Â¡Â§uECNÂ¡ÃÂ¡ÃUÂ¨ÃÂ©ÂªÂ¨ÃÂ¡Ã¾ CIÂ¡Ã?Â¡Â§IÂ¢Â®Â¨Â¡Â¢Â®I Â¨ÃoyÂ¡Â§uÂ¡ÃcÂ¡Ã?Â¡ÃÂ¢Ã§Â¢Â®Â¨Â¡O Â¡Â§uEÂ¢Â®Â¢Â´AAaÂ¡Ã?Â¢Â®Â¨Â¡ [QUEST ID : %d]", QuestIdx);
+//		sprintf(buff, "￠?a¡¾a￠￥A Au¨o¨￢¨¡￠c¡Æ￠® xAc ¨uECN￠￥Uⓒøⓒ￢ CI￠?¨I¡Æ¡I ⓒoy¨u￠c￠?￠®¡ÆO ¨uE¡¤AAa￠?¡Æ [QUEST ID : %d]", QuestIdx);
 //		ASSERTMSG(0, buff);
 		return FALSE;
 	}
@@ -2692,7 +2636,7 @@ BOOL CPlayer::SetQuestState(DWORD QuestIdx, QSTATETYPE value)
 	pQuest->SetValue(value);
 	BOOL bEnd = pQuest->IsComplete();
 
-	// DBÂ¡Ã?Â¡ÃÂ¢Ã§ Â¡Â§uAÂ¡Â§Â¢Â®ACNÂ¡ÃÂ¡ÃU.
+	// DB￠?￠® ¨uA¨¡ACN￠￥U.
 	QuestUpdateToDB( GetID(), QuestIdx, value, (BYTE)bEnd );
 
 	if( bEnd )
@@ -2716,8 +2660,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 {
 	m_initState |= initstate;
 
-
-	// 091106 LUJ, ÂºÂ¹ÃÃ¢ÃÃ ifÂ¹Â® ÃÂ³Â¸Â®Â¸Â¦ Â°Â£Â°Ã¡ÃÂ­
+	// 091106 LUJ, 복잡한 if문 처리를 간결화
 	if(FALSE == (m_initState & PLAYERINITSTATE_ONLY_ADDED))
 	{
 		return;
@@ -2766,7 +2709,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	{
 		const ITEMBASE * pTargetItemBase = ITEMMGR->GetItemInfoAbsIn(this, part);
 
-		if( pTargetItemBase && 
+		if( pTargetItemBase &&
 			pTargetItemBase->dwDBIdx )
 		{
 			m_HeroCharacterInfo.WearedItemIdx[part-TP_WEAR_START] = pTargetItemBase->wIconIdx;
@@ -2791,7 +2734,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 
 	m_dwProgressTime = gCurTime;
 
-	// LUJ, ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡ ÃÃ¼Â¼ÃÃÃÂ±Ã¢ ÃÃ¼Â¿Â¡ Â°Ã¨Â»ÃªÃÃÂ¾ÃÃÃÂ´Ã
+	// LUJ, 클라이언트에 전송하기 전에 계산해야한다
 	CHARCALCMGR->Initialize(
 		this);
 
@@ -2805,11 +2748,10 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 		GETITEM_FLAG_INVENTORY | GETITEM_FLAG_WEAR);
 	GetSendMoveInfo(&msg.SendMoveInfo,NULL);
 
-
 	msg.ChrTotalInfo.CurMapNum = GAMERESRCMNGR->GetLoadMapNum();
 	msg.UniqueIDinAgent = GetUniqueIDinAgent();
 
-	SKILL_BASE SkillTreeInfo[MAX_SKILL_TREE] = {0};	
+	SKILL_BASE SkillTreeInfo[MAX_SKILL_TREE] = {0};
 	m_SkillTree->SetPositionHead();
 
 	for(SKILL_BASE* skill = m_SkillTree->GetData();
@@ -2835,7 +2777,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	srand( GetTickCount());
 	GetLocalTime(&msg.ServerTime);
 
-	// 080827 LYW --- Player : Â°Ã¸Â¼Âº Â»Ã³ÃÃÂ¸Â¦ ÃÂ¯ÃÃºÂ¿Â¡Â°Ã(Client)Â·Ã ÃÃ¼Â¼ÃÃÃÂ´Ã.
+	// 080827 LYW --- Player : 공성 상태를 유저에게(Client)로 전송한다.
 	msg.Category	= MP_USERCONN;
 	msg.Protocol	= MP_USERCONN_GAMEIN_ACK;
 
@@ -2850,14 +2792,14 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	msgFishingExp.dweData2 = m_dwFishingExp;
 	SendMsg( &msgFishingExp, sizeof(msgFishingExp) );
 
-	// 080424 NYJ --- Â¹Â°Â°Ã­Â±Ã¢ÃÃ·ÃÃÃÂ®
+	// 080424 NYJ --- 물고기포인트
 	MSG_DWORD msgFishPoint;
 	msgFishPoint.Category = MP_FISHING;
 	msgFishPoint.Protocol = MP_FISHING_POINT_ACK;
 	msgFishPoint.dwData   = m_dwFishPoint;
 	SendMsg( &msgFishPoint, sizeof(msgFishPoint) );
 
-	// Â¿Ã¤Â¸Â®Â¼Ã·Â·ÃÂµÂµ
+	// 요리숙련도
 	MSG_DWORD4 msgCookState;
 	msgCookState.Category = MP_COOK;
 	msgCookState.Protocol = MP_COOK_STATE;
@@ -2867,7 +2809,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	msgCookState.dwData4 = GetFireCount();
 	SendMsg( &msgCookState, sizeof(msgCookState) );
 
-	// Â¿Ã¤Â¸Â®Â´ÃÃÃÂ·Â¹Â½ÃÃÃ
+	// 요리달인레시피
 	int i;
 	for(i=0; i<MAX_RECIPE_LV4_LIST; i++)
 	{
@@ -2888,7 +2830,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	msgMapDesc.Category		= MP_USERCONN;
 	msgMapDesc.Protocol		= MP_USERCONN_MAPDESC;
 	msgMapDesc.wData1		= (WORD)g_pServerSystem->GetMap()->IsVillage();
-	// 090824 ONS GMÃÃ¸Â¿Â¡Â¼Â­ PKÃÂ¦Â¾Ã®Â½Ã Â¼Â³ÃÂ¤ÂµÃ PKÃÃ£Â¿Ã«Â°Âª.
+	// 090824 ONS GM툴에서 PK제어시 설정된 PK허용값.
 	msgMapDesc.wData2		= (WORD)PKMGR->IsPKAllow();
 	msgMapDesc.wData3		= (WORD)GetCurChannel();
 	SendMsg( &msgMapDesc, sizeof(msgMapDesc) );
@@ -2910,7 +2852,7 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 	QUICKMNGR->SendQuickInfo(
 		this);
 
-	// S Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ ÃÃÂ°Â¡ added by hseos 2007.05.29
+	// S 몬스터미터 추가 added by hseos 2007.05.29
 	{
 		MSG_DWORD2 msg;
 		msg.Category	= MP_CHAR;
@@ -2924,13 +2866,13 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 		msg.dwData1		= m_stMonstermeterInfo.nKillMonsterNum;
 		msg.dwData2		= m_stMonstermeterInfo.nKillMonsterNumTotal;
 		SendMsg(&msg, sizeof(msg));
-		// ÃÂ®Â¸Â®Â°ÃÂ¸Â¦ ÃÃÂ¾Ã®ÂµÃ©ÃÃÂ´Ã
+		// 트리거를 읽어들인다
 		TRIGGERMGR->LoadTrigger(*this);
 	}
 
 	g_csFarmManager.SRV_SendPlayerFarmInfo(this);
 	g_csDateManager.SRV_SendChallengeZoneEnterFreq(this);
-	// 091106 LUJ, Â¸Â®Â¹ÃÃÂ® Â´Ã¸ÃÂ¯Â¿Â¡ ÂµÃ®Â·ÃÂ½ÃÃÂ²Â´Ã
+	// 091106 LUJ, 리미트 던젼에 등록시킨다
 	LIMITDUNGEONMGR->AddPlayer(*this);
 	GUILDMGR->AddPlayer( this );
 	GUILDWARMGR->AddPlayer( this );
@@ -2952,13 +2894,12 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 			CCharMove::GetPosition(this));
 	}
 
-	// 100408 ShinJS --- Â¼Â­Â¹Ã¶ Â½ÃÂ°Â£ ÃÃ¼Â¼Ã
+	// 100408 ShinJS --- 서버 시간 전송
 	stTime64t serverTimeMsg;
 	ZeroMemory( &serverTimeMsg, sizeof(serverTimeMsg) );
 	serverTimeMsg.Category = MP_USERCONN;
 	serverTimeMsg.Protocol = MP_USERCONN_GETSERVERTIME_ACK;
 	serverTimeMsg.dwObjectID = GetID();
-
 	_time64( &serverTimeMsg.time64t );
 
 	SendMsg( &serverTimeMsg, sizeof(serverTimeMsg) );
@@ -2974,33 +2915,33 @@ void CPlayer::SetInitState(int initstate,DWORD protocol)
 			g_pServerSystem->GetMapNum());
 	}
 
-	// 100525 NYJ - ÃÃÂ¸ÃÂ´Ã«ÃÃ  ÂµÃ®Â·ÃÂ»Ã³ÃÂ°Â¿Â¡ Â´Ã«ÃÃ Â½ÃÂ°Â£Â°Ã¦Â°ÃºÃÂ¼ÃÂ© Â¼Ã¶ÃÃ 
+	// 100525 NYJ - 판매대행 등록상품에 대해 시간경과체크 수행
 	Consignment_CheckDate(GetID());
 	Note_CheckDate(GetID());
 
-	// 100611 ONS Â·ÃÂ±ÃÃÃÂ½Ã ÃÂ¤ÃÃÂ±ÃÃÃ¶ ÃÂ¤ÂºÂ¸Â¸Â¦ Â·ÃÂµÃ¥ÃÃÂ´Ã.
+	// 100611 ONS 로그인시 채팅금지 정보를 로드한다.
 	ForbidChatLoad(GetID());
 }
 
-int CPlayer::CanExitStart()	//~Â¢Â®Â¢Â´avÂ¢Â®Â¨Â¡C
+int CPlayer::CanExitStart()	//~¡¤av¡ÆC
 {
 //	if( GetState() != eObjectState_None && GetState() != eObjectState_Move )
 //		return FALSE;
 	if( IsPKMode() )
 		return eEXITCODE_PKMODE;
-	if( LOOTINGMGR->IsLootedPlayer(GetID()) )	//PKÂ¢Â®Â¢Â´cÂ¡Â§Â¢Â®A; Â¡ÃÂ¡ÃcCIÂ¡ÃÂ¡ÃA AÂ¨ÃÂ¡Ã¾AIÂ¢Â®Â¨Â¡Â¡ÃÂ¢Ã§?
+	if( LOOTINGMGR->IsLootedPlayer(GetID()) )	//PK¢®¢´c¡§¢®A; ¡Ë¡ÍcCI¡Ë¡ÍA A¨Ï¡þAI¢®¨¡¡Ë¢ç?
 		return eEXITCODE_LOOTING;
 
-	if( GetState() == eObjectState_Exchange )	//Â¡Â¾Â©Ã¸E?AÂ©Â¬Â¢Â¯Â¡Ã AÂ¨ÃºÂ¡Â¤aCO Â¨Ã¹o Â¨ÃºÂ©ÂªÂ¢Â¥U.
+	if( GetState() == eObjectState_Exchange )	//¡¾©øE?A©¬¢¯¡Ì A¨ú¡¤aCO ¨ùo ¨ú©ª¢¥U.
 		return eEXITCODE_NOT_ALLOW_STATE;
 
 	if( GetState() == eObjectState_StreetStall_Owner ||
-		GetState() == eObjectState_StreetStall_Guest )	//Â©Ã¸eAÂ¢Â®AÂ©Â¬Â¢Â¯Â¡Ã AÂ¨ÃºÂ¡Â¤aCO Â¨Ã¹o Â¨ÃºÂ©ÂªÂ¢Â¥U.
+		GetState() == eObjectState_StreetStall_Guest )	//©øeA¢®A©¬¢¯¡Ì A¨ú¡¤aCO ¨ùo ¨ú©ª¢¥U.
 		return eEXITCODE_NOT_ALLOW_STATE;
 
-	if( GetState() == eObjectState_Deal )	//Â¡Ã­oAÂ¢Â® AIÂ¢Â¯eAÂ©Â¬Â¢Â¯Â¡Ã AÂ¨ÃºÂ¡Â¤aCO Â¨Ã¹o Â¨ÃºÂ©ÂªÂ¢Â¥U.
+	if( GetState() == eObjectState_Deal )	//¡íoA¢® AI¢¯eA©¬¢¯¡Ì A¨ú¡¤aCO ¨ùo ¨ú©ª¢¥U.
 		return eEXITCODE_NOT_ALLOW_STATE;
-	
+
 	return eEXITCODE_OK;
 }
 
@@ -3013,19 +2954,19 @@ void CPlayer::SetExitStart( BOOL bExit )
 int CPlayer::CanExit()
 {
 	DWORD lCurTime = MHTIMEMGR_OBJ->GetNewCalcCurTime();
-	if( lCurTime - m_dwExitStartTime < EXIT_COUNT*1000 - 2000 )	//8.0	//Â¹Ã¶ÃÃÂ¸Â¦ ÃÃ¦ÂºÃÃÃ· ÃÃ¢ÃÃ
+	if( lCurTime - m_dwExitStartTime < EXIT_COUNT*1000 - 2000 )	//8.0	//버퍼를 충분히 잡자
 		return eEXITCODE_SPEEDHACK;
 
-	if( IsPKMode() )							//PKÂ¡ÃÂ¡Ã¾Â¨ÃÂ¡ÃÂ¡ÃiaAIÂ¢Â®Â¨Â¡Â¡ÃÂ¢Ã§?
+	if( IsPKMode() )							//PK¡Ë¡þ¨Ï¡Ì¡ÍiaAI¢®¨¡¡Ë¢ç?
 		return eEXITCODE_PKMODE;
-	if( LOOTINGMGR->IsLootedPlayer(GetID()) )	//PKÂ¢Â®Â¢Â´cÂ¡Â§Â¢Â®A; Â¡ÃÂ¡ÃcCIÂ¡ÃÂ¡ÃA AÂ¨ÃÂ¡Ã¾AIÂ¢Â®Â¨Â¡Â¡ÃÂ¢Ã§?
+	if( LOOTINGMGR->IsLootedPlayer(GetID()) )	//PK¢®¢´c¡§¢®A; ¡Ë¡ÍcCI¡Ë¡ÍA A¨Ï¡þAI¢®¨¡¡Ë¢ç?
 		return eEXITCODE_LOOTING;
 
 //---KES AUTONOTE
 	if( GetAutoNoteIdx() )
 		return eEXITCODE_NOT_ALLOW_STATE;
 //---------------
-	
+
 	return eEXITCODE_OK;
 }
 
@@ -3038,27 +2979,27 @@ void CPlayer::ExitCancel()
 		msgNack.Category	= MP_CHAR;
 		msgNack.Protocol	= MP_CHAR_EXIT_NACK;
 		msgNack.bData		= eEXITCODE_DIEONEXIT;
-		SendMsg(&msgNack, sizeof(msgNack));		
+		SendMsg(&msgNack, sizeof(msgNack));
 	}
 }
 
 int CPlayer::PKModeOn()
 {
-	if( IsPKMode() ) return ePKCODE_ALREADYPKMODEON;		//AIÂ¨ÃoI PKÂ¡ÃÂ¡Ã¾Â¨ÃÂ¡ÃÂ¡Ãia
-	if( IsShowdown() ) return ePKCODE_SHOWDOWN;		//Â¡Â§Â¡Ã¾nÂ¨ÃoÂ¢Â®iAÂ¨ÃÂ¡Ã¾AIÂ¡ÃÂ¡Ã¾e Â¡Â§uEÂ¡ÃiEÂ¡ÃÂ¡ÃU
+	if( IsPKMode() ) return ePKCODE_ALREADYPKMODEON;		//AI¨ÏoI PK¡Ë¡þ¨Ï¡Ì¡Íia
+	if( IsShowdown() ) return ePKCODE_SHOWDOWN;		//¡§¡þn¨Ïo¢®iA¨Ï¡þAI¡Ë¡þe ¡§uE¡ÍiE¡Ë¡ÍU
 
-	//pkÂ¢Â¬Â©Â£Â¥Ã¬a AÂ¡ÃÂ¢Â¬e Â©Ã¶Â¡Ã¬AuÂ¡Ã­oAA CÂ¨ÂªA|
+	//pk¢¬©£¥ìa A¡Æ¢¬e ©ö¡ìAu¡íoAA C¨ªA|
 	if( GetState() == eObjectState_Immortal )
 		OBJECTSTATEMGR_OBJ->EndObjectState( this, eObjectState_Immortal );
 
 	if( GetState() == eObjectState_Die )
-		return ePKCODE_STATECONFLICT;	//Â¡ÃÂ¡ÃUÂ¡ÃÂ¡Ã¾Â¢Â®IÂ¢Â®ioAAAIÂ¡ÃOÂ¢Â®Â¡Â¿Â¡ÃÂ¡ÃA Â¡Â§uEÂ¡ÃiEÂ¡ÃÂ¡ÃU.
-	
+		return ePKCODE_STATECONFLICT;	//¡Ë¡ÍU¡Ë¡þ¢®I¢®ioAAAI¡ËO¢®¡¿¡Ë¡ÍA ¡§uE¡ÍiE¡Ë¡ÍU.
+
 	m_HeroCharacterInfo.bPKMode = TRUE;
 	m_dwPKModeStartTime			= gCurTime;
 
 //---KES PK 071124
-	m_dwPKContinueTime			= 20*60*1000 + ( GetBadFame() / 75 ) * 5*60*1000;	//Â±Ã¢ÂºÂ» 30ÂºÃ + Â¾ÃÂ¸Ã­ÃÂ¡ 75Â¸Â¶Â´Ã 5ÂºÃ
+	m_dwPKContinueTime			= 20*60*1000 + ( GetBadFame() / 75 ) * 5*60*1000;	//기본 30분 + 악명치 75마다 5분
 //----------------
 
 	return ePKCODE_OK;
@@ -3086,7 +3027,7 @@ void CPlayer::PKModeOffForce()
 
 void CPlayer::StateProcess()
 {
-	switch( GetState() )		
+	switch( GetState() )
 	{
 	case eObjectState_None:
 		{
@@ -3138,7 +3079,7 @@ void CPlayer::StateProcess()
 				{
 					m_HeroInfo.LastPKModeEndTime = 0;
 				}
-				
+
 				UpdateCharacterInfoByTime(
 					GetID(),
 					GetPlayerExpPoint(),
@@ -3171,9 +3112,9 @@ void CPlayer::StateProcess()
 		break;
 	case eObjectState_Die:
 		{
-			//---KES PK 071202	ÃÃÃÂº Â°Ã¦Â¿Ã¬ Â½ÃÂ°Â£ÃÂ» Â°Ã¨Â¼Ã Â¸Â®Â¼Ã (Â½ÃÂ°Â£ÃÃ Â¾ÃÂ°Â¡ÂµÂµÂ·Ã)
+			//---KES PK 071202	죽은 경우 시간을 계속 리셋 (시간이 안가도록)
 			SetPKStartTimeReset();
-			
+
 			if(FALSE == m_bNeedRevive )
 			{
 				break;
@@ -3202,7 +3143,7 @@ void CPlayer::StateProcess()
 				{
 					MSGBASE message;
 					message.Category	= MP_USERCONN;
-					message.Protocol	= MP_USERCONN_READY_TO_REVIVE_BY_GFW;					
+					message.Protocol	= MP_USERCONN_READY_TO_REVIVE_BY_GFW;
 					SendMsg( &message, sizeof( message ) );
 
 					m_bNeedRevive = FALSE;
@@ -3214,7 +3155,7 @@ void CPlayer::StateProcess()
 					break;
 				if( IsReadyToRevive() != TRUE )
 					break;
-				
+
 				MSGBASE msg;
 				msg.Category = MP_USERCONN;
 				msg.Protocol = MP_USERCONN_READY_TO_REVIVE;
@@ -3236,7 +3177,7 @@ void CPlayer::StateProcess()
 }
 
 void CPlayer::SetWearedItemIdx(DWORD WearedPosition,DWORD ItemIdx)
-{	
+{
 	const int size = sizeof( m_HeroCharacterInfo.WearedItemIdx ) / sizeof( DWORD );
 
 	if( size > WearedPosition )
@@ -3246,7 +3187,7 @@ void CPlayer::SetWearedItemIdx(DWORD WearedPosition,DWORD ItemIdx)
 	else
 	{
 		ASSERT( 0 );
-	}	
+	}
 }
 
 void CPlayer::QuestProcess()
@@ -3254,12 +3195,10 @@ void CPlayer::QuestProcess()
 	m_QuestGroup.Process();
 }
 
-
 void CPlayer::SetPKModeEndtime()
 {
 	m_HeroInfo.LastPKModeEndTime = 0;
 }
-
 
 void CPlayer::AddBadFameReduceTime()
 {
@@ -3289,13 +3228,11 @@ void CPlayer::AddBadFameReduceTime()
 	}
 }
 
-
-
 void CPlayer::SpeedHackCheck()
 {
 	++m_nHackCount;
 
-	if( gCurTime - m_dwHackStartTime >= 60*1000 )	//1ÂºÃ
+	if( gCurTime - m_dwHackStartTime >= 60*1000 )	//1분
 	{
 		if( m_nHackCount >= g_nHackCheckWriteNum )
 		{
@@ -3321,14 +3258,13 @@ void CPlayer::ClearMurderIdx()
 	m_bPenaltyByDie = FALSE;
 }
 
-
 DWORD CPlayer::Damage(CObject* pAttacker,RESULTINFO* pDamageInfo)
 {
 	DWORD life = GetLife();
 
 // --- skr 12/01/2020
   //if( IsRelifeON() ){ return life; }
- 
+
 	DWORD beforelife = life;
 
 	if(life > pDamageInfo->RealDamage)
@@ -3339,16 +3275,16 @@ DWORD CPlayer::Damage(CObject* pAttacker,RESULTINFO* pDamageInfo)
 	{
 		if( GetUserLevel() == eUSERLEVEL_GM || m_God ) // && g_pServerSystem->GetNation() == eNATION_KOREA )
 		{
-			life = 1;		//gmÃÂº ÂµÂ¥Â¹ÃÃÃ¶Â´Ã Â¹ÃÂ¾ÃÂµÂµ ÃÃÃÃ¶ Â¾ÃÂµÂµÂ·Ã
+			life = 1;		//gm은 데미지는 받아도 죽지 않도록
 		}
 		else
 		{
 			life = 0;
 		}
 	}
-	
+
 	SetLife(life,FALSE);
- 
+
 	DoDamage(pAttacker,pDamageInfo,beforelife);
 
 	return life;
@@ -3359,10 +3295,10 @@ DWORD CPlayer::ManaDamage( CObject* pAttacker, RESULTINFO* pDamageInfo )
 	DWORD mana = GetMana();
 	DWORD beforemana = mana;
 	mana = (mana > pDamageInfo->ManaDamage ? mana - pDamageInfo->ManaDamage : 0);
-	
+
 	SetMana( mana, FALSE );
- 
-	// Â¸Â¶Â³Âª ÂµÂ¥Â¹ÃÃÃ¶Â¸Â¸ ÃÃÂ´Ã Â°Ã¦Â¿Ã¬
+
+	// 마나 데미지만 있는 경우
 	if( pDamageInfo->RealDamage == 0 )
 		DoManaDamage( pAttacker, pDamageInfo, beforemana );
 
@@ -3392,7 +3328,7 @@ void CPlayer::SetGuildMarkName(MARKNAMETYPE MarkName)
 }
 
 char* CPlayer::GetGuildCanEntryDate()
-{ 
+{
 	return m_HeroInfo.MunpaCanEntryDate;
 }
 
@@ -3440,7 +3376,7 @@ void CPlayer::CheckImmortalTime()
 		msg.dwObjectID = GetID();
 		msg.dwData1 = GetID();
 		msg.dwData2 = 0;
-		
+
 		PACKEDDATA_OBJ->QuickSend(this,&msg,sizeof(msg));
 	}
 }
@@ -3456,28 +3392,28 @@ void CPlayer::SetFamilyNickName(char* NickName)
 }
 
 LEVELTYPE CPlayer::GetLevel()
-{ 
-	return m_HeroCharacterInfo.Level; 
+{
+	return m_HeroCharacterInfo.Level;
 }
 
-DWORD CPlayer::GetLife() 
-{ 
-	return m_HeroCharacterInfo.Life; 
+DWORD CPlayer::GetLife()
+{
+	return m_HeroCharacterInfo.Life;
 }
 
 DWORD CPlayer::GetMana()
-{ 
-	return m_HeroInfo.Mana; 
+{
+	return m_HeroInfo.Mana;
 }
 
 DWORD CPlayer::DoGetMaxLife()
-{ 
-	return m_HeroCharacterInfo.MaxLife; 
+{
+	return m_HeroCharacterInfo.MaxLife;
 }
 
 DWORD CPlayer::DoGetMaxMana()
-{ 
-	return m_HeroInfo.MaxMana; 
+{
+	return m_HeroInfo.MaxMana;
 }
 
 void CPlayer::SetStage( BYTE grade, BYTE index )
@@ -3491,7 +3427,7 @@ void CPlayer::SetStage( BYTE grade, BYTE index )
 	msg.bData2		= index ;
 	PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof(msg) );
 
-	CharacterTotalInfoUpdate( this );	
+	CharacterTotalInfoUpdate( this );
 }
 
 WORD CPlayer::GetJobCodeForGT ()
@@ -3534,17 +3470,15 @@ void CPlayer::SetJob( BYTE jobGrade, BYTE jobIdx )
 						m_HeroCharacterInfo.Job[4],
 						m_HeroCharacterInfo.Job[5] );
 
-
-	// 071112 Â¿ÃµÃÃ, ÃÂ¬Â·Â¡Â½Âº Â·ÃÂ±ÃÂ¸Â¦ Â³Â²Â±Ã¤Â´Ã
+	// 071112 웅주, 클래스 로그를 남긴다
 	InsertLogJob( this, m_HeroCharacterInfo.Job[0], jobGrade, jobIdx );
 
-	// 081022 KTH -- 
+	// 081022 KTH --
 	CHARCALCMGR->AddPlayerJobSkill(this);
 
 	WebEvent( GetUserID(), 2 );
 
-
-	// 100113 ONS ÃÃÂ¹ÃÂµÃ®Â·ÃÃÂ¤ÂºÂ¸ÃÃ ÃÂ¬Â·Â¡Â½ÂºÃÂ¤ÂºÂ¸Â°Â¡ ÂºÂ¯Â°Ã¦ÂµÃÂ¾ÃºÃÂ» Â°Ã¦Â¿Ã¬ Â¿Â¡ÃÃÃÃ¼ÃÂ®Â·Ã ÃÃ¼Â´ÃÃÃÂ´Ã.
+	// 100113 ONS 주민등록정보중 클래스정보가 변경되었을 경우 에이전트로 전달한다.
 	CHARACTER_TOTALINFO TotalInfo;
 	ZeroMemory(&TotalInfo, sizeof(TotalInfo));
 	GetCharacterTotalInfo(&TotalInfo);
@@ -3564,7 +3498,7 @@ void CPlayer::SetJob( BYTE jobGrade, BYTE jobIdx )
 	Packet.dwData = dwClass;
 	g_Network.Broadcast2AgentServer( ( char* )&Packet, sizeof( Packet ) );
 
-	// 080225 LUJ, Â±Ã¦ÂµÃ¥ ÃÂ¸Â¿Ã¸ÃÃ Â°Ã¦Â¿Ã¬ ÃÃ·Â¾Ã· ÃÂ¤ÂºÂ¸ ÂºÂ¯Â°Ã¦ÃÂ» ÃÃ¼ Â¼Â­Â¹Ã¶Â¿Â¡ ÃÃ¼ÃÃÃÃÂ¾ÃÃÃÂ´Ã
+	// 080225 LUJ, 길드 회원일 경우 직업 정보 변경을 전 서버에 전파해야한다
 	{
 		CGuild* guild = GUILDMGR->GetGuild( GetGuildIdx() );
 
@@ -3593,24 +3527,24 @@ void CPlayer::SetJob( BYTE jobGrade, BYTE jobIdx )
 		g_Network.Send2AgentServer( ( char* )&message, sizeof( message ) );
 
 		GUILDMGR->NetworkMsgParse( message.Protocol, &message );
-	}	
+	}
 }
 
 void CPlayer::SendPlayerToMap(MAPTYPE mapNum, float xpos, float zpos)
 {
-	MSG_DWORD3 msg ;														// Â¸ÃÂ½ÃÃÃ¶ Â±Â¸ÃÂ¶ÃÂ¼Â¸Â¦ Â¼Â±Â¾Ã°ÃÃÂ´Ã.
-	memset(&msg, 0, sizeof(MSG_DWORD3)) ;									// Â¸ÃÂ½ÃÃÃ¶ ÃÃÂ±Ã¢ÃÂ­.
+	MSG_DWORD3 msg ;														// 메시지 구조체를 선언한다.
+	memset(&msg, 0, sizeof(MSG_DWORD3)) ;									// 메시지 초기화.
 
 	msg.Category	= MP_USERCONN ;
-	msg.Protocol	= MP_USERCONN_QUEST_CHANGEMAP_SYN ;						// ÃÂ«ÃÃÂ°Ã­Â¸Â®Â¿Ã ÃÃÂ·ÃÃÃ¤ÃÃÃÂ» Â¼Â¼ÃÃÃÃÂ´Ã.
+	msg.Protocol	= MP_USERCONN_QUEST_CHANGEMAP_SYN ;						// 카테고리와 프로토콜을 세팅한다.
 
-	msg.dwObjectID	= GetID() ;												// Â¿ÃÂºÃªÃÂ§ÃÂ® Â¾ÃÃÃÂµÃ°Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	msg.dwObjectID	= GetID() ;												// 오브젝트 아이디를 세팅한다.
 
-	msg.dwData1		= (DWORD)mapNum ;										// ÂµÂµÃÃ¸ ÃÃ¶Â¿ÂªÃÃ Â¸Ã Â¹Ã¸ÃÂ£Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-	msg.dwData2		= (DWORD)xpos ;											// XÃÃÃÂ¥Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
-	msg.dwData3		= (DWORD)zpos ;											// ZÃÃÃÂ¥Â¸Â¦ Â¼Â¼ÃÃÃÃÂ´Ã.
+	msg.dwData1		= (DWORD)mapNum ;										// 도착 지역의 맵 번호를 세팅한다.
+	msg.dwData2		= (DWORD)xpos ;											// X좌표를 세팅한다.
+	msg.dwData3		= (DWORD)zpos ;											// Z좌표를 세팅한다.
 
-	SendMsg( &msg, sizeof(MSG_DWORD3) ) ;									// Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ ÃÃ¼Â¼ÃÃÃÂ´Ã.
+	SendMsg( &msg, sizeof(MSG_DWORD3) ) ;									// 메시지를 전송한다.
 }
 
 DOUBLE CPlayer::GetPlayerTotalExpPoint()
@@ -3661,7 +3595,7 @@ float CPlayer::GetAvoid()
 	return mAvoid;
 }
 
-// 100221 ShinJS --- ÂºÃ­Â·Â°Â°Ã¸Â½Ã Â¼Ã¶ÃÂ¤
+// 100221 ShinJS --- 블럭공식 수정
 float CPlayer::GetBlock()
 {
 	const float rate	= mRateBuffStatus.Block + mRatePassiveStatus.Block;
@@ -3669,25 +3603,25 @@ float CPlayer::GetBlock()
 
 	switch( GetJop( 0 ) )
 	{
-		// 080910 LUJ, ÃÃÃÃÃÃ
+		// 080910 LUJ, 파이터
 	case 1:
 		{
 			bonus = 15.f;
 			break;
 		}
-		// 080910 LUJ, Â·ÃÂ±Ã
+		// 080910 LUJ, 로그
 	case 2:
 		{
 			bonus = 10.f;
 			break;
 		}
-		// 080910 LUJ, Â¸ÃÃÃÃÃ¶
+		// 080910 LUJ, 메이지
 	case 3:
 		{
 			bonus = 5.f;
 			break;
 		}
-		// 100218 ShinJS --- Â¸Â¶ÃÂ·
+		// 100218 ShinJS --- 마족
 	case 4:
 		{
 			bonus = 9.f;
@@ -3779,19 +3713,19 @@ float CPlayer::GetManaRecover()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-// 06. 07. Â»Ã³ÃÃÂ°Â­ÃÂ¦ÂºÂ¯Â°Ã¦ - ÃÃÂ¿ÂµÃÃ
-// ÃÃÃÂ¤ÃÃÂ»Ã³ Â½ÂºÃÂ³ Â»Ã§Â¿Ã«Â½ÃÃÃÂ½Ã ÃÂ¯ÂºÂ°ÃÃ Â»Ã³ÃÃÂ¸Â¦ ÃÂ¦Â¿ÃÃÃ Â³ÂªÂ¸ÃÃÃ¶ Â»Ã³ÃÃÂ´Ã Â¸Ã°ÂµÃ ÃÃÂ±Ã¢ÃÂ­
-// ÃÂ¤Â»Ã³ÃÃ»ÃÃ Â»Ã³ÃÃÂ¿Â¡Â¼Â­Â´Ã Â°ÂªÃÂ» ÃÃÂ±Ã¢ÃÂ­
-// Â½ÃÃÃÂ°ÂªÃÂ» Â´Â©ÃÃ»ÃÃÃÃ¶ Â¾ÃÂ´ÃÂ´Ã.
-// Â¿Â¬Â¼Ã Â½ÃÃÃÂ½ÃÂ¿Â¡Â¸Â¸ Â»Ã³ÃÃÃÃÃÂ¦
+// 06. 07. 상태강제변경 - 이영준
+// 일정이상 스킬 사용실패시 특별한 상태를 제외한 나머지 상태는 모두 초기화
+// 정상적인 상태에서는 값을 초기화
+// 실패값을 누적하지 않는다.
+// 연속 실패시에만 상태해제
 BOOL CPlayer::CanSkillState()
 {
-	//Â¿Â¬Â¼Ã 5ÃÂ¸ ÃÃÂ»Ã³ Â½ÃÃÃÂ½Ã
+	//연속 5회 이상 실패시
 	if(m_SkillFailCount >= 5)
 	{
 		switch(m_BaseObjectInfo.ObjectState)
 		{
-		// Â½ÂºÃÂ³ÃÂ» Â»Ã§Â¿Ã«ÃÃÂ¼Ã¶ ÃÃÂ´Ã Â»Ã³ÃÃÂ¸Ã© Â°ÂªÃÂ» ÃÃÂ±Ã¢ÃÂ­ÃÃÂ°Ã­ TRUE Â¸Â®ÃÃ
+		// 스킬을 사용할수 있는 상태면 값을 초기화하고 TRUE 리턴
 		case eObjectState_None:
 		case eObjectState_Move:
 		case eObjectState_TiedUp_CanSkill:
@@ -3800,10 +3734,10 @@ BOOL CPlayer::CanSkillState()
 				return TRUE;
 			}
 			break;
-		// Â½ÂºÃÂ³ÃÂ» Â»Ã§Â¿Ã«ÃÃÂ¼Ã¶ Â¾Ã¸Â´Ã Â»Ã³ÃÃÃÃ ÃÂ®Â¾Ã®ÃÃ ÂµÂµ Â¹Â«Â¹Ã¦ÃÃ Â»Ã³ÃÃÂ¸Ã© Â°ÂªÃÂ» ÃÃÂ±Ã¢ÃÂ­ ÃÃÂ°Ã­
-		// Â»Ã³ÃÃÂ¸Â¦ ÃÃÂ±Ã¢ÃÂ­ ÃÃÂµÃ TRUE Â¸Â®ÃÃ
+		// 스킬을 사용할수 없는 상태중 풀어줘도 무방한 상태면 값을 초기화 하고
+		// 상태를 초기화 한뒤 TRUE 리턴
 		case eObjectState_SkillStart:
-		case eObjectState_SkillSyn:	
+		case eObjectState_SkillSyn:
 		case eObjectState_SkillBinding:
 		case eObjectState_SkillUsing:
 		case eObjectState_SkillDelay:
@@ -3816,7 +3750,7 @@ BOOL CPlayer::CanSkillState()
 				return TRUE;
 			}
 			break;
-		// Â±Ã Â¿ÃÃÃ Â°Ã¦Â¿Ã¬Â¿Â£ Â°ÂªÃÂ» ÃÃÂ±Ã¢ÃÂ­ ÃÃÂ°Ã­ FALSE Â¸Â®ÃÃ
+		// 그 외의 경우엔 값을 초기화 하고 FALSE 리턴
 		default:
 			{
 				m_SkillFailCount = 0;
@@ -3826,8 +3760,8 @@ BOOL CPlayer::CanSkillState()
 		}
 	}
 
-	// 5ÃÂ¸ ÃÃÃÃ ÃÃÂ¶Â§ Â½ÂºÃÂ³ÃÂ» Â»Ã§Â¿Ã«ÃÃÂ¼Ã¶ Â¾Ã¸Â´Ã Â»Ã³ÃÃÂ¸Ã©
-	// Â°ÂªÃÂ» ÃÃµÂ°Â¡ÃÃÂ°Ã­ FALSE Â¸Â®ÃÃ
+	// 5회 이하 일때 스킬을 사용할수 없는 상태면
+	// 값을 증가하고 FALSE 리턴
 	if(m_BaseObjectInfo.ObjectState != eObjectState_None &&
 	   m_BaseObjectInfo.ObjectState != eObjectState_Move &&
 	   m_BaseObjectInfo.ObjectState != eObjectState_TiedUp_CanSkill )
@@ -3836,7 +3770,7 @@ BOOL CPlayer::CanSkillState()
 		return FALSE;
 	}
 
-	// ÃÂ¤Â»Ã³ Â»Ã³ÃÃÃÃÂ¶Â§ Â°ÂªÃÂ» ÃÃÂ±Ã¢ÃÂ­ÃÃÂ°Ã­ TRUE Â¸Â®ÃÃ
+	// 정상 상태일때 값을 초기화하고 TRUE 리턴
 	m_SkillFailCount = 0;
 	return TRUE;
 }
@@ -3852,8 +3786,8 @@ SLOT_INFO*	CPlayer::GetQuick( BYTE sheet, WORD pos )
 	return m_QuickSlot[ sheet ].GetQuick( pos );
 }
 
-// desc_hseos_Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ01
-// S Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ ÃÃÂ°Â¡ added by hseos 2007.05.23	2007.07.08
+// desc_hseos_몬스터미터01
+// S 몬스터미터 추가 added by hseos 2007.05.23	2007.07.08
 void CPlayer::ProcMonstermeterPlayTime()
 {
 	if (gCurTime - m_stMonstermeterInfo.nPlayTimeTick > SHMath_MINUTE(1))
@@ -3862,14 +3796,14 @@ void CPlayer::ProcMonstermeterPlayTime()
 		m_stMonstermeterInfo.nPlayTime++;
 		m_stMonstermeterInfo.nPlayTimeTotal++;
 
-		// DBÂ¿Â¡ ÃÃºÃÃ¥
+		// DB에 저장
 		//MonsterMeter_Save(GetID(), m_stMonstermeterInfo.nPlayTime, m_stMonstermeterInfo.nKillMonsterNum, m_stMonstermeterInfo.nPlayTimeTotal, m_stMonstermeterInfo.nKillMonsterNumTotal);
 
-		// ÃÃÂ·Â¹ÃÃÂ½ÃÂ°Â£ÃÂº ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡Â¼Â­ÂµÂµ Â°Ã¨Â»Ãª Â°Â¡Â´ÃÃÃÂ¹ÃÂ·Ã ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡Â¼Â­ Â°Ã¨Â»ÃªÃÃÂµÂµÂ·Ã ÃÃÂ°Ã­
-		// ÃÂ¤Â½Ã Â¸Ã°Â¸Â¦ Â¿ÃÃÃ·ÂÂÂ¹Â®Â¿Â¡ 10ÂºÃÂ¸Â¶Â´Ã Â¼Â­Â¹Ã¶ÃÃ Â¼Ã¶ÃÂ¡Â¸Â¦ ÂºÂ¸Â³Â»ÃÃÂ´Ã.
+		// 플레이시간은 클라이언트에서도 계산 가능하므로 클라이언트에서 계산하도록 하고
+		// 혹시 모를 오차문에 10분마다 서버의 수치를 보내준다.
 		if ((m_stMonstermeterInfo.nPlayTime%10) == 0)
 		{
-			// ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡ Â¾ÃÂ¸Â®Â±Ã¢
+			// 클라이언트에 알리기
 			MSG_DWORD2 msg;
 			msg.Category = MP_CHAR;
 			msg.Protocol = MP_CHAR_MONSTERMETER_PLAYTIME;
@@ -3883,23 +3817,23 @@ void CPlayer::ProcMonstermeterPlayTime()
 		{
 			WebEvent( GetUserID(), 6 );
 		}
-		// ÂºÂ¸Â»Ã³ ÃÂ³Â¸Â®
+		// 보상 처리
 		g_csMonstermeterManager.ProcessReward(this, CSHMonstermeterManager::RBT_PLAYTIME, m_stMonstermeterInfo.nPlayTimeTotal);
 	}
 }
-// E Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ ÃÃÂ°Â¡ added by hseos 2007.05.23	2007.07.08
+// E 몬스터미터 추가 added by hseos 2007.05.23	2007.07.08
 
-// desc_hseos_Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ01
-// S Â¸Ã³Â½ÂºÃÃÂ¹ÃÃÃ ÃÃÂ°Â¡ added by hseos 2007.05.23	2007.07.08
+// desc_hseos_몬스터미터01
+// S 몬스터미터 추가 added by hseos 2007.05.23	2007.07.08
 void CPlayer::ProcMonstermeterKillMon()
 {
 	m_stMonstermeterInfo.nKillMonsterNum++;
 	m_stMonstermeterInfo.nKillMonsterNumTotal++;
 
-	// DBÂ¿Â¡ ÃÃºÃÃ¥
+	// DB에 저장
 	//MonsterMeter_Save(GetID(), m_stMonstermeterInfo.nPlayTime, m_stMonstermeterInfo.nKillMonsterNum, m_stMonstermeterInfo.nPlayTimeTotal, m_stMonstermeterInfo.nKillMonsterNumTotal);
 
-	// ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡ Â¾ÃÂ¸Â®Â±Ã¢
+	// 클라이언트에 알리기
 	MSG_DWORD2 msg;
 	msg.Category = MP_CHAR;
 	msg.Protocol = MP_CHAR_MONSTERMETER_KILLMONSTER;
@@ -3913,7 +3847,7 @@ void CPlayer::ProcMonstermeterKillMon()
 		WebEvent( GetUserID(), 9 );
 	}
 
-	// ÂºÂ¸Â»Ã³ ÃÂ³Â¸Â®
+	// 보상 처리
 	g_csMonstermeterManager.ProcessReward(this, CSHMonstermeterManager::RBT_MONSTERKILL, m_stMonstermeterInfo.nKillMonsterNumTotal);
 }
 
@@ -3926,7 +3860,7 @@ void CPlayer::ProcFarmTime()
 			m_stFarmInfo.nCropPlantRetryTimeTick = gCurTime;
 			m_stFarmInfo.nCropPlantRetryTime--;
 
-			// DBÂ¿Â¡ ÃÃºÃÃ¥
+			// DB에 저장
 			Farm_SetTimeDelay(GetID(), CSHFarmManager::FARM_TIMEDELAY_KIND_PLANT, m_stFarmInfo.nCropPlantRetryTime);
 		}
 	}
@@ -3938,11 +3872,11 @@ void CPlayer::ProcFarmTime()
 			m_stFarmInfo.nCropManureRetryTimeTick = gCurTime;
 			m_stFarmInfo.nCropManureRetryTime--;
 
-			// DBÂ¿Â¡ ÃÃº?			Farm_SetTimeDelay(GetID(), CSHFarmManager::FARM_TIMEDELAY_KIND_MANURE, m_stFarmInfo.nCropManureRetryTime);
+			// DB에 저?			Farm_SetTimeDelay(GetID(), CSHFarmManager::FARM_TIMEDELAY_KIND_MANURE, m_stFarmInfo.nCropManureRetryTime);
 		}
 	}
 
-	// 080430 KTH Animal Delay Add  (ÂºÃ)Â´ÃÃÂ§Â´Ã Â¿Â©Â±Ã¢Â¼Â­ Â¼Ã¶ÃÂ¡Â¸Â¦ Decrease ÃÃÃÃÂ´ÃÂ±Âº...
+	// 080430 KTH Animal Delay Add  (분)단위는 여기서 수치를 Decrease 해주는군...
 	if( m_stFarmInfo.nAnimalCleanRetryTime )
 	{
 		if( gCurTime - m_stFarmInfo.nAnimalCleanRetryTimeTick > SHMath_MINUTE(1) )
@@ -3965,7 +3899,7 @@ void CPlayer::ProcFarmTime()
 		}
 	}
 }
-// E Â³Ã³ÃÃ¥Â½ÃÂ½ÂºÃÃ ÃÃÂ°Â¡ added by hseos 2007.08.23
+// E 농장시스템 추가 added by hseos 2007.08.23
 
 BOOL CPlayer::IsInventoryPosition( POSTYPE position )
 {
@@ -3977,7 +3911,6 @@ BOOL CPlayer::IsInventoryPosition( POSTYPE position )
 	return begin <= position && end >= position;
 }
 
-
 void CPlayer::ResetSetItemStatus()
 {
 	mSetItemLevel.clear();
@@ -3986,12 +3919,10 @@ void CPlayer::ResetSetItemStatus()
 		sizeof(m_SetItemStats));
 }
 
-
 const CPlayer::SetItemLevel& CPlayer::GetSetItemLevel() const
 {
 	return mSetItemLevel;
 }
-
 
 CPlayer::SetItemLevel& CPlayer::GetSetItemLevel()
 {
@@ -4047,7 +3978,6 @@ void CPlayer::AddSetSkill(DWORD skillIndex, LEVELTYPE level)
 		skill);
 }
 
-
 void CPlayer::RemoveSetSkill(DWORD skillIndex, LEVELTYPE level)
 {
 	SKILL_BASE* const oldSkill = m_SkillTree->GetData(
@@ -4065,11 +3995,11 @@ void CPlayer::RemoveSetSkill(DWORD skillIndex, LEVELTYPE level)
 		skill);
 }
 
-// 090217 LUJ, Â¸Ã±ÃÃ»Â¿Â¡ Â¸ÃÂµÂµÂ·Ã ÃÃÂ¼Ã¶ ÃÃÂ¸Â§ ÂºÂ¯Â°Ã¦
+// 090217 LUJ, 목적에 맞도록 함수 이름 변경
 void CPlayer::SetHideLevel( WORD level )
-{ 
-	m_HeroCharacterInfo.HideLevel = level; 
-	
+{
+	m_HeroCharacterInfo.HideLevel = level;
+
 	if( level )
 	{
 		m_HeroCharacterInfo.bVisible = false;
@@ -4085,22 +4015,22 @@ void CPlayer::SetHideLevel( WORD level )
 	msg.dwObjectID = GetID();
 	msg.wData = level;
 
-	PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof( msg ) );	
+	PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof( msg ) );
 }
 
-// 090217 LUJ, Â¸Ã±ÃÃ»Â¿Â¡ Â¸ÃÂ°Ã ÃÃÂ¼Ã¶ ÃÃÂ¸Â§ ÂºÂ¯Â°Ã¦
+// 090217 LUJ, 목적에 맞게 함수 이름 변경
 void CPlayer::SetDetectLevel( WORD level )
-{ 
-	m_HeroCharacterInfo.DetectLevel = level; 
-	
+{
+	m_HeroCharacterInfo.DetectLevel = level;
+
 	MSG_WORD msg;
 	msg.Category = MP_CHAR;
 	msg.Protocol = MP_CHAR_DETECT_NOTIFY;
 	msg.dwObjectID = GetID();
 	msg.wData = level;
 
-	PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof( msg ) );	
-}	
+	PACKEDDATA_OBJ->QuickSend( this, &msg, sizeof( msg ) );
+}
 
 void CPlayer::RemoveAllAggroed()
 {
@@ -4148,13 +4078,13 @@ void CPlayer::AddAggroToMyMonsters(int nAggroAdd, DWORD targetObjectIndex, DWORD
 	}
 }
 
-// 080910 LUJ, Â¹Ã¦ÃÃÃÃ Â¹Ã¦Â¾Ã®Â·ÃÃÂ» Â¹ÃÃÂ¯ÃÃÂ´Ã
+// 080910 LUJ, 방패의 방어력을 반환한다
 DWORD CPlayer::GetShieldDefense()
 {
 	return mShieldDefense;
 }
 
-// 080910 LUJ, Â¹Ã¦ÃÃÃÃ Â¹Ã¦Â¾Ã®Â·ÃÃÂ» Â¼Â³ÃÂ¤ÃÃÂ´Ã
+// 080910 LUJ, 방패의 방어력을 설정한다
 void CPlayer::SetShieldDefence( DWORD shieldDefense )
 {
 	mShieldDefense = shieldDefense;
@@ -4184,7 +4114,6 @@ void CPlayer::RemoveCoolTime( DWORD coolTimeGroupIndex)
 		coolTimeGroupIndex);
 }
 
-
 void CPlayer::ProcCoolTime()
 {
 	if(true == mCoolTimeMap.empty())
@@ -4203,7 +4132,7 @@ void CPlayer::ProcCoolTime()
 		if( ( time.mBeginTick < time.mEndTick && time.mEndTick < tick ) ||
 			( time.mBeginTick > time.mEndTick && time.mBeginTick > tick && time.mEndTick < tick ) )
 		{
-			// ÃÃÃÃ: Â»Ã¨ÃÂ¦ÃÃ ÃÃÃÃÂ¿Â¡Â´Ã Â¹ÃÂºÂ¹ÃÃÂ°Â¡ ÃÃÂ¸Ã¸ÂµÃÂ´ÃÂ´Ã Â»Ã§Â½ÃÃÂ» Â¸Ã­Â½Ã. ÂµÃ»Â¶Ã³Â¼Â­ Â´ÃÃÂ½ ÃÃÂ·ÃÂ¼Â¼Â½ÂºÂ¿Â¡Â¼Â­ ÃÂ³Â¸Â®ÃÃÂ¾Ã ÃÃÂ´Ã.
+			// 주의: 삭제한 이후에는 반복자가 잘못된다는 사실을 명심. 따라서 다음 프로세스에서 처리해야 한다.
 			group.insert( it->first );
 		}
 	}
@@ -4214,8 +4143,8 @@ void CPlayer::ProcCoolTime()
 	}
 }
 
-DWORD CPlayer::GetVitality() 
-{ 
+DWORD CPlayer::GetVitality()
+{
 	const float rate =
 		mRatePassiveStatus.Vit +
 		mRateBuffStatus.Vit +
@@ -4238,8 +4167,8 @@ DWORD CPlayer::GetVitality()
 	return (DWORD)( Round( Result, 1 ) );
 }
 
-DWORD CPlayer::GetWisdom() 
-{ 
+DWORD CPlayer::GetWisdom()
+{
 	const float	rate =
 		mRatePassiveStatus.Wis +
 		mRateBuffStatus.Wis +
@@ -4262,7 +4191,7 @@ DWORD CPlayer::GetWisdom()
 	return (DWORD)( Round( Result, 1 ) );
 }
 
-DWORD CPlayer::GetStrength() 
+DWORD CPlayer::GetStrength()
 {
 	const float	rate =
 		mRatePassiveStatus.Str +
@@ -4286,8 +4215,8 @@ DWORD CPlayer::GetStrength()
 	return (DWORD)( Round( Result, 1 ) );
 }
 
-DWORD CPlayer::GetDexterity() 
-{ 
+DWORD CPlayer::GetDexterity()
+{
 	const float rate =
 		mRatePassiveStatus.Dex +
 		mRateBuffStatus.Dex +
@@ -4310,7 +4239,7 @@ DWORD CPlayer::GetDexterity()
 	return (DWORD)( Round( Result, 1 ) );
 }
 
-DWORD CPlayer::GetIntelligence() 
+DWORD CPlayer::GetIntelligence()
 {
 	const float rate =
 		mRatePassiveStatus.Int +
@@ -4335,8 +4264,8 @@ DWORD CPlayer::GetIntelligence()
 }
 
 void CPlayer::SetObjectBattleState(eObjectBattleState state)
-{ 
-	m_BaseObjectInfo.ObjectBattleState = state; 
+{
+	m_BaseObjectInfo.ObjectBattleState = state;
 
 	if( state )	//eObjectBattleState_Battle
 	{
@@ -4394,7 +4323,7 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 			{
 				pItemBase->nRemainSecond -= dwElapsedSecond;
 
-				// 071125 KTH --- Player "RemainSecondÂ°Â¡ 1ÂºÃ Â¹ÃÂ¸Â¸ÃÃ Â°Ã¦Â¿Ã¬ ÃÂ¬Â¶Ã³ÃÃÂ¾Ã°ÃÂ®Â¿Â¡Â°Ã ÃÂ¤ÂºÂ¸Â¸Â¦ ÂºÂ¸Â³Â»ÃÃÂ´Ã."
+				// 071125 KTH --- Player "RemainSecond가 1분 미만일 경우 클라이언트에게 정보를 보내준다."
 				if( pItemBase->nRemainSecond <= 60 )
 				{
 					MSG_DWORD2 msg;
@@ -4402,7 +4331,7 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 					msg.Protocol = MP_ITEM_TIMELIMT_ITEM_ONEMINUTE;
 					msg.dwData1 = pItemBase->wIconIdx;
 					msg.dwData2 = pItemBase->Position;
-	
+
 					SendMsg(&msg, sizeof(msg));
 				}
 
@@ -4432,7 +4361,7 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 				{
 					CVehicle* const vehicle = ( CVehicle* )g_pUserTable->FindUser( GetSummonedVehicle() );
 
-					// 090316 LUJ, ÃÃÂ´Ã§ Â¾ÃÃÃÃÃÃÂ¸Â·Ã Â¼ÃÃÂ¯ÂµÃ ÃÂ» Â°ÃÃÂ» Â¼ÃÃÂ¯ ÃÃÃÂ¦ÃÃÂ´Ã
+					// 090316 LUJ, 해당 아이템으로 소환된 탈 것을 소환 해제한다
 					if( vehicle &&
 						vehicle->GetObjectKind() == eObjectKind_Vehicle )
 					{
@@ -4451,7 +4380,7 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 					msg.TargetPos = position;
 					msg.wItemIdx = iconIdx;
 					msg.ItemNum = 1;
-					SendMsg(&msg, sizeof(msg));	
+					SendMsg(&msg, sizeof(msg));
 
 					LogItemMoney(
 						GetID(),
@@ -4473,7 +4402,7 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 		}
 	}
 
-	// NYJ - Â½ÃÂ°Â£ÃÂ¦ Â¿Ã¤Â¸Â®Â·Â¹Â½ÃÃÃ Â½ÃÂ°Â£Â¼ÃÂ¸Ã°
+	// NYJ - 시간제 요리레시피 시간소모
 	ProcessRecipeTimeCheck(dwElapsedMili);
 
 	{
@@ -4488,13 +4417,13 @@ void CPlayer::ProcessTimeCheckItem( BOOL bForceDBUpdate )
 		}
 	}
 
-	// 100525 NYJ - ÃÃÂ¸ÃÂ´Ã«ÃÃ  ÂµÃ®Â·ÃÂ»Ã³ÃÂ°Â¿Â¡ Â´Ã«ÃÃ Â½ÃÂ°Â£Â°Ã¦Â°ÃºÃÂ¼ÃÂ© Â¼Ã¶ÃÃ 
+	// 100525 NYJ - 판매대행 등록상품에 대해 시간경과체크 수행
 	Consignment_CheckDate(GetID());
 	Note_CheckDate(GetID());
 }
 
-// desc_hseos_Â°Ã¡ÃÂ¥_01
-// S Â°Ã¡ÃÂ¥ ÃÃÂ°Â¡ added by hseos 2008.01.29
+// desc_hseos_결혼_01
+// S 결혼 추가 added by hseos 2008.01.29
 BOOL CPlayer::RemoveItem(DWORD nItemID, DWORD nItemNum, eLogitemmoney eLogKind)
 {
 	int iCheckItemMaxNum = TP_WEAR_END;
@@ -4541,14 +4470,13 @@ BOOL CPlayer::RemoveItem(DWORD nItemID, DWORD nItemNum, eLogitemmoney eLogKind)
 			msg.TargetPos = position;
 			msg.wItemIdx = iconIdx;
 			msg.ItemNum = nItemNum;
-			SendMsg(&msg, sizeof(msg));	
+			SendMsg(&msg, sizeof(msg));
 		}
 	}
 
 	return TRUE;
 }
-// E Â°Ã¡ÃÂ¥ ÃÃÂ°Â¡ added by hseos 2008.01.29
-
+// E 결혼 추가 added by hseos 2008.01.29
 
 BOOL CPlayer::IncreaseInventoryExpansion()
 {
@@ -4574,9 +4502,9 @@ void CPlayer::PassiveSkillCheckForWeareItem()
 		const DWORD skillLevel = my_min(
 			pSkillBase->Level,
 			SKILLMGR->GetSkillSize(pSkillBase->wSkillIdx));
-		const cActiveSkillInfo* const pSkill = SKILLMGR->GetActiveInfo( 
+		const cActiveSkillInfo* const pSkill = SKILLMGR->GetActiveInfo(
 			pSkillBase->wSkillIdx - 1 + skillLevel);
-		
+
 		if(0 == pSkill)
 		{
 			continue;
@@ -4643,9 +4571,9 @@ void CPlayer::SetFishingExp(EXPTYPE dwExp)
 		m_dwFishingExp = 0;
 		return;
 	}
-	
-	// Â°Ã¦ÃÃ¨ÃÂ¡Â°Â¡ Â´ÃÃÂ½ Â´ÃÂ°Ã¨Â¿Â¡Â¼Â­ Â¿Ã¤Â±Â¸ÃÃÂ´Ã Â°ÃÂºÂ¸Â´Ã ÃÃÂ¾Ã Â¸Â¹ÃÂ» Â¼Ã¶ ÃÃÃÂ¸Â¹ÃÂ·Ã,
-	// Â°Ã¨Â¼Ã ÃÂ¼ÃÂ©ÃÃÂ¼Â­ Â·Â¹ÂºÂ§Â¾Ã·ÃÃÃÃ
+
+	// 경험치가 다음 단계에서 요구하는 것보다 훨씬 많을 수 있으므로,
+	// 계속 체크해서 레벨업하자
 	{
 		EXPTYPE nextPoint = 0 ;
 		nextPoint = GAMERESRCMNGR->GetFishingMaxExpPoint( level ) ;
@@ -4671,7 +4599,7 @@ void CPlayer::SetFishingExp(EXPTYPE dwExp)
 				msg.Category = MP_FISHING;
 				msg.Protocol = MP_FISHING_LEVELUP_NACK;
 				msg.wData = m_wFishingLevel;
-				SendMsg(&msg, sizeof(msg));	
+				SendMsg(&msg, sizeof(msg));
 				break;
 			}
 
@@ -4685,14 +4613,14 @@ void CPlayer::SetFishingExp(EXPTYPE dwExp)
 				dwExp - nextPoint,
 				GetFishingLevel() );
 
-			// 100607 NYJ ÂºÂ¸ÃÂ¶Â±Ã¢Â¼Ãº Â·Â¹ÂºÂ§Â¾Ã·Â½Ã Â¾ÃÃÃÃÃÃÃ¶Â±Ã
+			// 100607 NYJ 보조기술 레벨업시 아이템지급
 			DWORD dwRewardItem = GAMERESRCMNGR->GetFishingLevelUpReward(level);
 			if(dwRewardItem)
 			{
 				ITEM_INFO* pInfo = ITEMMGR->GetItemInfo(dwRewardItem);
 				if(pInfo)
 				{
-					// 2286, 2287, "2288" Â´Ã SystemMsg.binÃÃ ÃÃÂµÂ¦Â½Âº
+					// 2286, 2287, "2288" 는 SystemMsg.bin의 인덱스
 					ItemInsertToNote(GetID(), dwRewardItem, 1, pInfo->wSeal, 0, eNoteParsing_FishingLevelUp, 2286, 2287, "2288");
 				}
 			}
@@ -4706,7 +4634,7 @@ void CPlayer::SetFishingExp(EXPTYPE dwExp)
 			msg.Category = MP_FISHING;
 			msg.Protocol = MP_FISHING_LEVELUP_ACK;
 			msg.wData = m_wFishingLevel;
-			SendMsg(&msg, sizeof(msg));	
+			SendMsg(&msg, sizeof(msg));
 
 			dwExp		-=	nextPoint;
 			nextPoint	=	GAMERESRCMNGR->GetFishingMaxExpPoint( level );
@@ -4716,61 +4644,61 @@ void CPlayer::SetFishingExp(EXPTYPE dwExp)
 	}
 }
 
-// 080509 LUJ, Â½ÂºÃÂ³ ÃÃ°ÃÂ¸ÃÃÃÃ ÃÃ¶Â³ÂªÃÃ¶ Â¾ÃÂ¾ÃÃÂ¸Â¸Ã© ÃÃ¼ÃÂ» Â¹ÃÃÂ¯ÃÃÂ´Ã
-// 080514 LUJ, Â½ÂºÃÂ³ Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã Â½ÃÂ°Â£ ÃÂ¼ÃÂ©
-// 080515 LUJ, ÃÃ°ÃÂ¸ÃÃÂ°Ãº Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã Â½ÃÂ°Â£ ÃÂ¼ÃÂ©Â·Ã ÃÃÃÃ Â½ÂºÃÂ³ÃÃ Â¾Ã³Â¸Â¶Â³Âª Â½ÃÃÃÃÃÂ´ÃÃÃ¶ ÃÂ¡Â°ÃÃÃÂ±Ã¢ ÃÂ§ÃÃ Â·ÃÂ±ÃÂ¸Â¦ ÃÃÂ¼ÂºÃÃÂ´Ã
-// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ© Â½ÃÃÃÂ°Â¡ ÃÃ£Â¿Ã« Â¹Ã¼ÃÂ§ ÃÃÂ»Ã³ÃÃ Â¶Â§ ÃÂ¢Â¼ÃÃÂ» ÃÂ¾Â·Ã¡Â½ÃÃÂ´
+// 080509 LUJ, 스킬 쿨타임이 지나지 않았으면 참을 반환한다
+// 080514 LUJ, 스킬 애니메이션 시간 체크
+// 080515 LUJ, 쿨타임과 애니메이션 시간 체크로 인해 스킬이 얼마나 실패하는지 점검하기 위해 로그를 작성한다
+// 080516 LUJ, 쿨타임 체크 실패가 허용 범위 이상일 때 접속을 종료시킴
 BOOL CPlayer::IsCoolTime( const ACTIVE_SKILL_INFO& skill )
 {
-	// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ Â½ÃÃÃÂ°Â¡ Â¹ÃÂ»Ã½ÃÃÂµÂµ ÃÃÃÂ¤ ÃÂ¸Â¼Ã¶ ÃÃÂ»Ã³ÃÂº ÃÃ£Â¿Ã«ÃÃÂ´Ã. Â±Ã ÃÃÂ»Ã³ÃÃ Â¹ÃÂ»Ã½ÃÃÂ¸Ã© ÃÂ¢Â¼ÃÃÂ» Â°Â­ÃÂ¦Â·Ã ÃÂ¾Â·Ã¡Â½ÃÃÂ²Â´Ã
+	// 080516 LUJ, 쿨타임 실패가 발생해도 일정 회수 이상은 허용한다. 그 이상이 발생하면 접속을 강제로 종료시킨다
 	struct
 	{
 		void operator() ( CPlayer& player, CPlayer::CheckCoolTime& checkCoolTime )
 		{
 			const DWORD maxCheckTick = 1000 * 60;
 
-			// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ Â½ÃÃÃÂ°Â¡ Â¹ÃÂ»Ã½ÃÃ ÃÃ¶ ÃÃÃÂ¤ÃÃ Â½ÃÂ°Â£ÃÃ ÃÃ¶Â³ÂµÃÂ¸Â¸Ã© ÃÂ¼ÃÂ© ÂµÂ¥ÃÃÃÃÂ¸Â¦ ÃÃÂ±Ã¢ÃÂ­ÃÃÂ´Ã
-			// 080519 LUJ, maxCheckTick Â³Â»Â¿Â¡ Â¹ÃÂ»Ã½ÃÃ Â¿ÃÂ·Ã¹ ÃÂ¼ÃÂ©Â¸Â¦ ÃÃÃÃ¶ Â¸Ã¸ÃÃÂ´Ã¸ Â°Ã Â¼Ã¶ÃÂ¤
+			// 080516 LUJ, 쿨타임 실패가 발생한 지 일정한 시간이 지났으면 체크 데이터를 초기화한다
+			// 080519 LUJ, maxCheckTick 내에 발생한 오류 체크를 하지 못하던 것 수정
 			if( maxCheckTick < ( checkCoolTime.mCheckedTick - gCurTime ) )
 			{
-				// 080519 LUJ, ÃÂ¼ÃÂ© Â½ÃÂ°Â£ÃÂ» ÃÃ¶Â±ÃÂºÃÃÃ maxCheckTickÂµÂ¿Â¾ÃÃÂ¸Â·Ã ÃÃÂ´Ã
+				// 080519 LUJ, 체크 시간을 지금부터 maxCheckTick동안으로 한다
 				checkCoolTime.mCheckedTick	= gCurTime + maxCheckTick;
 				checkCoolTime.mFailureCount	= 0;
 			}
 
 			const DWORD maxCheckCount = 10;
 
-			// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ Â½ÃÃÃÂ°Â¡ ÃÃ£Â¿Ã« ÃÂ¸Â¼Ã¶ ÃÃÃÃÃÃÂ¸Ã©, ÃÂ³Â¸Â®ÃÃÃÃ¶ Â¾ÃÂ´ÃÂ´Ã
+			// 080516 LUJ, 쿨타임 실패가 허용 회수 이하이면, 처리하지 않는다
 			if( maxCheckCount > ++checkCoolTime.mFailureCount )
 			{
 				return;
 			}
 
-			// 080516 LUJ, ÃÃÃÂ¤ ÃÂ¸Â¼Ã¶ÃÃÂ»Ã³ Â½ÃÃÃÃÃ Â°Ã¦Â¿Ã¬ ÃÂ¢Â¼ÃÃÂ» ÃÂ¾Â·Ã¡Â½ÃÃÂ²Â´Ã
+			// 080516 LUJ, 일정 회수이상 실패한 경우 접속을 종료시킨다
 			{
 				MSG_DWORD message;
 				ZeroMemory( &message, sizeof( message ) );
 				message.Category	= MP_USERCONN;
 				message.Protocol	= MP_USERCONN_GAMEIN_NACK;
 				message.dwData		= player.GetID();
-				
+
 				g_Network.Broadcast2AgentServer( (char*)&message, sizeof( message ) );
 
-				// 100812 NYJ - Â°Â­ÃÂ¦ÃÂ¾Â·Ã¡ ÃÃÂ¼ÃÂ·ÃÂ±ÃÂ¸Â¦ Â³Â²Â±Ã¢ÃÃ.
+				// 100812 NYJ - 강제종료 콘솔로그를 남기자.
 				g_Console.LOG(4, "Force KickOut!! (CoolTime Check Failed.) : ID: %d, NAME: %s",  player.GetID(), player.GetObjectName() );
 			}
 		}
 	}
 	Punish;
 
-	// 080514 LUJ, Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼ÃÃÃ ÃÂ¥Â½ÃÂµÃÂ´Ã Â¼Ã¸Â°Â£Â¿Â¡Â´Ã Â½ÂºÃÂ³ÃÂ» Â»Ã§Â¿Ã«ÃÃ Â¼Ã¶ Â¾Ã¸Â´Ã
+	// 080514 LUJ, 애니메이션이 표시되는 순간에는 스킬을 사용할 수 없다
 	const SkillAnimTimeMap::const_iterator itAnim = mSkillAnimTimeMap.find( skill.Index );
 	if(mSkillAnimTimeMap.end() != itAnim &&
 		itAnim->second > gCurTime)
 	{
-		// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ©Â°Â¡ ÃÃÃÂ¤ Â±Ã¢ÃÃ ÃÃÂ»Ã³ Â½ÃÃÃÃÃÃÂ» Â¶Â§ Â¹ÃºÃÂ¢ÃÂ» ÂºÃÂ¿Â©ÃÃÂ´Ã
+		// 080516 LUJ, 쿨타임 체크가 일정 기준 이상 실패했을 때 벌칙을 부여한다
 		Punish( *this, mCheckCoolTime );
-		// 080519 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ© Â½ÃÃÃ Â¶Â§ÂµÂµ Â»Ã§Â¿Ã« Â°Â¡Â´ÃÃÃÂ°Ã Â¹ÃÃÂ¯ÃÃÂ´Ã. ÃÃÃÂ¤ ÃÂ¸Â¼Ã¶ ÃÃÂ»Ã³ Â½ÃÃÃ Â½Ã Â¹ÃºÃÂ¢ÃÂ» ÂºÃÂ¿Â©ÃÃÂ±Ã¢ Â¶Â§Â¹Â®
+		// 080519 LUJ, 쿨타임 체크 실패 때도 사용 가능하게 반환한다. 일정 회수 이상 실패 시 벌칙을 부여하기 때문
 		return FALSE;
 	}
 
@@ -4786,23 +4714,23 @@ BOOL CPlayer::IsCoolTime( const ACTIVE_SKILL_INFO& skill )
 
 	if( isCoolTime )
 	{
-		// 080516 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ©Â°Â¡ ÃÃÃÂ¤ Â±Ã¢ÃÃ ÃÃÂ»Ã³ Â½ÃÃÃÃÃÃÂ» Â¶Â§ Â¹ÃºÃÂ¢ÃÂ» ÂºÃÂ¿Â©ÃÃÂ´Ã
+		// 080516 LUJ, 쿨타임 체크가 일정 기준 이상 실패했을 때 벌칙을 부여한다
 		Punish( *this, mCheckCoolTime );
 	}
-	
-	// 080519 LUJ, ÃÃ°ÃÂ¸ÃÃ ÃÂ¼ÃÂ© Â½ÃÃÃ Â¶Â§ÂµÂµ Â»Ã§Â¿Ã« Â°Â¡Â´ÃÃÃÂ°Ã Â¹ÃÃÂ¯ÃÃÂ´Ã. ÃÃÃÂ¤ ÃÂ¸Â¼Ã¶ ÃÃÂ»Ã³ Â½ÃÃÃ Â½Ã Â¹ÃºÃÂ¢ÃÂ» ÂºÃÂ¿Â©ÃÃÂ±Ã¢ Â¶Â§Â¹Â®
+
+	// 080519 LUJ, 쿨타임 체크 실패 때도 사용 가능하게 반환한다. 일정 회수 이상 실패 시 벌칙을 부여하기 때문
 	return FALSE;
 }
 
-// 080511 LUJ, Â½ÂºÃÂ³ ÃÃ°ÃÂ¸ÃÃÃÂ» ÃÃÂ°Â¡ÃÃÂ´Ã
-// 080514 LUJ, Â½ÂºÃÂ³ Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã ÃÂ¾Â·Ã¡ Â½ÃÂ°Â£ Â¼Â³ÃÂ¤
-// 080605 LUJ, Â½ÂºÃÂ³ ÃÂ¾Â·Ã¹Â¿Â¡ ÂµÃ»Â¶Ã³ Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã Â½ÃÂ°Â£ÃÂ» ÂºÂ¯Â°Ã¦ÃÃÂ´Ã
+// 080511 LUJ, 스킬 쿨타임을 추가한다
+// 080514 LUJ, 스킬 애니메이션 종료 시간 설정
+// 080605 LUJ, 스킬 종류에 따라 애니메이션 시간을 변경한다
 void CPlayer::SetCoolTime( const ACTIVE_SKILL_INFO& skill )
 {
-	// 080605 LUJ, Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã ÃÂ¸ÃÃÃÂ» Â½ÂºÃÂ³ ÃÂ¾Â·Ã¹Â¿Â¡ ÂµÃ»Â¶Ã³ Â°Â¡ÂºÂ¯Â½ÃÃÂ°Â±Ã¢ ÃÂ§ÃÃ ÂºÂ¯Â¼Ã¶ ÃÂ¤ÃÃ
+	// 080605 LUJ, 애니메이션 타임을 스킬 종류에 따라 가변시키기 위해 변수 정의
 	float animationTime = float( skill.AnimationTime );
 
-	// 080605 LUJ, Â½ÂºÃÂ³ ÃÂ¾Â·Ã¹Â¿Â¡ ÂµÃ»Â¶Ã³ Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼Ã ÃÂ¸ÃÃÃÂ» ÃÃ»ÃÃ½ÃÃ· Â°Â¡Â°Â¨ÃÃÂ´Ã.
+	// 080605 LUJ, 스킬 종류에 따라 애니메이션 타임을 적절히 가감한다.
 	{
 		const Status* ratePassiveStatus = GetRatePassiveStatus();
 		const Status* rateBuffStatus	= GetRateBuffStatus();
@@ -4832,12 +4760,12 @@ void CPlayer::SetCoolTime( const ACTIVE_SKILL_INFO& skill )
 			}
 		}
 	}
-	
-	// 080514 LUJ, Â¾ÃÂ´ÃÂ¸ÃÃÃÂ¼ÃÃÃ Â³Â¡Â³ÂªÂ´Ã Â½ÃÂ°Â£ÃÂ» Â¼Â³ÃÂ¤ÃÃÂ´Ã. Â³ÃÃÂ®Â¿Ã¶ÃÂ© ÃÃ¶Â¿Â¬ÃÂ» Â°Â¨Â¾ÃÃÃÂ¿Â© 0.1ÃÃ Â¿ÃÃÃ·Â´Ã ÃÃ£Â¿Ã«ÃÃÂ´Ã
-	// 080520 LUJ, ÃÃÂ½ÂºÃÂ® Â°Ã¡Â°ÃºÂ·Ã 0.1->0.3ÃÃÂ·Ã ÃÃ£Â¿Ã« Â½ÃÂ°Â£ Â¿Â¬ÃÃ¥
-	// 080605 LUJ, ÃÃÂ¼Ã 0ÃÃ Â°ÂªÂ¸Â¸ ÃÃ£Â¿Ã«ÃÃÂ´Ã. animationTimeÃÃ Â½ÃÂ¼Ã¶Â·Ã ÂºÂ¯Â°Ã¦ÂµÃÂ¾Ã® Â¿ÃÂ¹Ã¶ÃÃÂ·Ã Â¿Â©ÃÃ¶Â°Â¡ ÃÃÂ±Ã¢ Â¶Â§Â¹Â®
+
+	// 080514 LUJ, 애니메이션이 끝나는 시간을 설정한다. 네트워크 지연을 감안하여 0.1초 오차는 허용한다
+	// 080520 LUJ, 테스트 결과로 0.1->0.3초로 허용 시간 연장
+	// 080605 LUJ, 최소 0인 값만 허용한다. animationTime이 실수로 변경되어 오버플로 여지가 있기 때문
 	mSkillAnimTimeMap[ skill.Index ] = DWORD( my_max( 0, animationTime ) ) + gCurTime - 300;
-	mSkillCoolTimeMap[ skill.Index ] = skill.CoolTime + gCurTime - 300;	
+	mSkillCoolTimeMap[ skill.Index ] = skill.CoolTime + gCurTime - 300;
 }
 
 void CPlayer::ResetCoolTime( const ACTIVE_SKILL_INFO& skill )
@@ -4848,7 +4776,7 @@ void CPlayer::ResetCoolTime( const ACTIVE_SKILL_INFO& skill )
 
 BOOL CPlayer::IsCanCancelSkill()
 {
-	// 100618 ShinJS ÃÃÃÂ¤Â½ÃÂ°Â£Â³Â»Â¿Â¡ ÃÂ¯ÃÂ¤ÃÂ¸Â¼Ã¶(ÃÃ¶ÃÃ§3ÃÂ¸)ÃÃÂ»Ã³ Â¿Ã¤ÃÂ»Â½Ã ÃÃ«Â¼ÃÂ¿Ã¤ÃÂ»Â¿Â¡ ÃÂ¦ÃÃÃÂ» ÃÃÂ´Ã.
+	// 100618 ShinJS 일정시간내에 특정회수(현재3회)이상 요청시 취소요청에 제한을 준다.
 	if( m_dwSkillCancelLastTime > gCurTime )
 	{
 		if( ++m_dwSkillCancelCount >= eSkillCancelLimit_Count )
@@ -4859,7 +4787,7 @@ BOOL CPlayer::IsCanCancelSkill()
 
 		return TRUE;
 	}
-	
+
 	m_dwSkillCancelCount = 0;
 	m_dwSkillCancelLastTime = gCurTime + eSkillCancelLimit_CheckTime;
 
@@ -4871,22 +4799,22 @@ const DWORD CPlayer::GetSkillCancelDelay() const
 	return eSkillCancelLimit_CheckTime;
 }
 
-// 100621 ShinJS ÃÃ¶ÃÃ§ ÃÂ³Â½ÂºÃÃÃÃÃÃ Â½ÂºÃÂ³ ÃÃ«Â¼Ã
+// 100621 ShinJS 현재 캐스팅중인 스킬 취소
 void CPlayer::CancelCurrentCastingSkill( BOOL bUseSkillCancelRate )
 {
 	cActiveSkillObject* const activeSkillObject = ( cActiveSkillObject* )SKILLMGR->GetSkillObject( mCurrentSkillID );
 
-	// 090109 LUJ, Â¾ÃÃÂ¼ÂºÃª Â½ÂºÃÂ³Â¸Â¸ ÃÃ«Â¼ÃÂµÃ Â¼Ã¶ ÃÃÂ´Ã
-	// 090109 LUJ, ÃÂ³Â½ÂºÃÃ ÃÃÂ¿Â¡Â¸Â¸ ÃÃ«Â¼ÃÂµÃ Â¼Ã¶ ÃÃÂµÂµÂ·Ã ÃÂ¼ÃÂ©ÃÃÂ´Ã
-	if( ! activeSkillObject || 
+	// 090109 LUJ, 액티브 스킬만 취소될 수 있다
+	// 090109 LUJ, 캐스팅 중에만 취소될 수 있도록 체크한다
+	if( ! activeSkillObject ||
 		cSkillObject::TypeActive != activeSkillObject->GetType() ||
 		! activeSkillObject->IsCasting() )
 	{
 		return;
 	}
 
-	if( bUseSkillCancelRate && 
-		activeSkillObject->GetInfo().Cancel <= (rand() % 100) ) 
+	if( bUseSkillCancelRate &&
+		activeSkillObject->GetInfo().Cancel <= (rand() % 100) )
 	{
 		return;
 	}
@@ -4916,7 +4844,7 @@ eArmorType CPlayer::GetArmorType(EWEARED_ITEM wearType) const
 
 void CPlayer::AddSpecialSkill(const cBuffSkillInfo* buffSkillInfo)
 {
-	// 090204 LUJ, ÃÂ³ÃÂ½Â¿Â¡Â´Ã ÃÃÂ»Ã³ ÃÃ»Â¿Ã«ÃÃÂ´Ã. ÃÃÂ·ÃÂ¼Â¼Â½Âº Â¶Â§ Â°ÃÂ»Ã§ÃÃÂ¸Ã©Â¼Â­ ÃÂ¶Â°ÃÂ¿Â¡ Â¸ÃÃÃ¶ Â¾ÃÃÂ» Â°Ã¦Â¿Ã¬ ÃÃÃÂ¦ÃÃÂ´Ã
+	// 090204 LUJ, 처음에는 항상 적용한다. 프로세스 때 검사하면서 조건에 맞지 않을 경우 해제한다
 	buffSkillInfo->AddBuffStatus( this );
 
 	SpecialSkillData specialSkillData = { 0 };
@@ -4946,7 +4874,7 @@ void CPlayer::RemoveSpecialSkill(const cBuffSkillInfo* buffSkillInfo)
 
 	const SpecialSkillData& specialSkillData = *it;
 
-	// 090204 LUJ, ÃÂ¶Â°ÃÂ¿Â¡ ÂµÃ»Â¶Ã³ Â¹ÃÃÃ»Â¿Ã« Â»Ã³ÃÃÃÃ Â¼Ã¶ ÃÃÃÂ¸Â¹ÃÂ·Ã Â°ÃÂ»Ã§ ÃÃ ÃÃ«Â¼ÃÃÃÂ¾Ã ÃÃÂ´Ã
+	// 090204 LUJ, 조건에 따라 미적용 상태일 수 있으므로 검사 후 취소해야 한다
 	if( specialSkillData.mIsTurnOn )
 	{
 		buffSkillInfo->RemoveBuffStatus( this );
@@ -4955,7 +4883,7 @@ void CPlayer::RemoveSpecialSkill(const cBuffSkillInfo* buffSkillInfo)
 	mSpecialSkillList.erase(it);
 }
 
-// 090204 LUJ, ÃÂ¯Â¼Ã¶ Â½ÂºÃÂ³ÃÂ» ÃÃÂ·ÃÂ¼Â¼Â½Âº ÃÂ¸ÃÃÂ¿Â¡ ÃÂ¼ÃÂ©ÃÃÂ´Ã
+// 090204 LUJ, 특수 스킬을 프로세스 타임에 체크한다
 void CPlayer::ProcSpecialSkill()
 {
 	if(true == mSpecialSkillList.empty())
@@ -4963,7 +4891,7 @@ void CPlayer::ProcSpecialSkill()
 		return;
 	}
 
-	// 090204 LUJ, ÃÂ¿ÃÂ²Â¼ÂºÃÂ» ÃÂ§ÃÃ ÃÃÃÃÃÃÂ³Ã Â¸Ã Â¾ÃÃÃ Â½ÂºÃÂ³ÃÂ» Â°ÃÂ»Ã§ÃÃ ÃÃ Â¸Ã ÂµÃÂ·Ã ÂµÂ¹Â¸Â°Â´Ã
+	// 090204 LUJ, 효율성을 위해 컨테이너 맨 앞의 스킬을 검사한 후 맨 뒤로 돌린다
 	SpecialSkillData specialSkillData = mSpecialSkillList.front();
 	mSpecialSkillList.pop_front();
 
@@ -4983,7 +4911,7 @@ void CPlayer::ProcSpecialSkill()
 		specialSkillData.mIsTurnOn = FALSE;
 	}
 
-	// 090204 LUJ, Â´ÃÃÂ½ Â°ÃÂ»Ã§Â¸Â¦ ÃÂ§ÃÃ ÃÃÂ°Â¡ÃÃÂ´Ã
+	// 090204 LUJ, 다음 검사를 위해 추가한다
 	mSpecialSkillList.push_back(
 		specialSkillData);
 }
@@ -5028,7 +4956,7 @@ void CPlayer::ProcessRecipeTimeCheck(DWORD dwElapsedTime)
 		{
 			if(dwElapsedMili > m_MasterRecipe[i].dwRemainTime)
 			{
-				// Â»Ã¨ÃÂ¦
+				// 삭제
 				DWORD dwRecipeIdx = m_MasterRecipe[i].dwRecipeIdx;
 				SetMasterRecipe(i, 0, 0);
 				Cooking_Recipe_Update(GetID(), eCOOKRECIPE_DEL, dwRecipeIdx, i, 0);
@@ -5046,7 +4974,7 @@ void CPlayer::ProcessRecipeTimeCheck(DWORD dwElapsedTime)
 			}
 			else
 			{
-				// Â°Â»Â½Ã
+				// 갱신
 				DWORD dwRemainTime = m_MasterRecipe[i].dwRemainTime - dwElapsedMili;
 				SetMasterRecipe(i, m_MasterRecipe[i].dwRecipeIdx, dwRemainTime);
 				Cooking_Recipe_Update(GetID(), eCOOKRECIPE_UPDATE, m_MasterRecipe[i].dwRecipeIdx, i, dwRemainTime);
@@ -5072,14 +5000,14 @@ void CPlayer::ProceedToTrigger()
 		return;
 	}
 
-	// Â´Ã¸ÃÃ¼Â¿ÃÃÃºÂ¹Ã¶Â´Ã Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ Â¹ÃÂ»Ã½Â½ÃÃÂ°ÃÃ¶ Â¾ÃÂ´ÃÂ´Ã.
+	// 던전옵저버는 메시지를 발생시키지 않는다.
 	if(m_bDungeonObserver)
 		return;
 
-	// 091116 LUJ, ÃÃÂ±Ã¢ÃÃ»ÃÂ¸Â·Ã Â¹ÃÂ¼ÃÃÃÂ´Ã Â¸ÃÂ½ÃÃÃ¶ Â°Â£Â°ÃÃÂ» Â´ÃÂ¸Â²(0.5 -> 1.0ÃÃ)
+	// 091116 LUJ, 주기적으로 발송하는 메시지 간격을 늘림(0.5 -> 1.0초)
 	const DWORD stepTick = 1000;
 	mNextCheckedTick = gCurTime + stepTick;
-	// 091116 LUJ, ÃÂ¤Â³ÃÂ¿Â¡ ÃÃÂ´Ã§ÃÃÂ´Ã Â¸ÃÂ½ÃÃÃ¶Â¸Â¦ ÃÃÂ´Ã§Â¹ÃÂµÂµÂ·Ã ÃÃÂ´Ã
+	// 091116 LUJ, 채널에 해당하는 메시지를 할당받도록 한다
 	Trigger::CMessage* const message = TRIGGERMGR->AllocateMessage(GetGridID());
 	message->AddValue(Trigger::eProperty_ObjectIndex, GetID());
 	message->AddValue(Trigger::eProperty_ObjectKind, GetObjectKind());
@@ -5087,7 +5015,7 @@ void CPlayer::ProceedToTrigger()
 }
 
 float CPlayer::GetBonusRange() const
-{	
+{
 	const float value = mPassiveStatus.Range + mBuffStatus.Range;
 	const float percent = mRatePassiveStatus.Range + mRateBuffStatus.Range;
 
@@ -5341,14 +5269,14 @@ cSkillTree& CPlayer::GetSkillTree()
 
 void CPlayer::SetPartyIdx( DWORD PartyIDx )
 {
-	m_HeroInfo.PartyID = PartyIDx; 
+	m_HeroInfo.PartyID = PartyIDx;
 
 	if(m_HeroInfo.PartyID)
 	{
 		return;
 	}
 
-	// ÃÃÃÂ¼ Â»Ã³ÃÃÃÃ Â°Ã¦Â¿Ã¬ ÃÂ¯ÃÂ¤ Â½ÂºÃÂ³ÃÂ» Â»Ã¨ÃÂ¦ÃÃÂ´Ã
+	// 파티 상태일 경우 특정 스킬을 삭제한다
 	{
 		cPtrList templist;
 		m_BuffSkillList.SetPositionHead();
@@ -5392,7 +5320,7 @@ CObject* CPlayer::GetTObject() const
 
 void CPlayer::AddToAggroed(DWORD objectIndex)
 {
-	// Â¹Ã¶ÃÃÂ·Ã ÂµÂ¥Â¹ÃÃÃ¶Â¸Â¦ ÃÃÃÃº Â°Ã¦Â¿Ã¬ Â°Ã¸Â°ÃÃÃÂ°Â¡ ÃÃÂ±Ã¢ ÃÃÂ½ÃÃÃ ÂµÃÂ´Ã. ÃÃÂ½ÃÃÂ» Â¾Ã®Â±ÃÂ·Ã ÃÃÃÃÃÃÂ³ÃÂ¿Â¡ ÃÃºÃÃ¥ÃÃ ÃÃÂ¿Ã¤Â´Ã Â¾Ã¸Â´Ã
+	// 버프로 데미지를 입힐 경우 공격자가 자기 자신이 된다. 자신을 어그로 컨테이너에 저장할 필요는 없다
 	if(GetID() == objectIndex)
 	{
 		return;
@@ -5404,7 +5332,7 @@ void CPlayer::AddToAggroed(DWORD objectIndex)
 
 	if( pObject->GetObjectKind() & eObjectKind_Monster )
 	{
-		// 100616 ShinJS --- Â»Ã³Â´Ã«Â¿Â¡Â°Ã ÃÃÂ½ÃÃÂ» ÂµÃ®Â·ÃÃÃÂµÂµÂ·Ã ÃÃÂ¿Â© Die/ReleaseÂ½Ã Â¾Ã®Â±ÃÂ·ÃÂ¸Â¦ ÃÂ¦Â°ÃÃÃÂ¼Ã¶ ÃÃÂµÂµÂ·Ã ÃÃÂ´Ã.
+		// 100616 ShinJS --- 상대에게 자신을 등록하도록 하여 Die/Release시 어그로를 제거할수 있도록 한다.
 		((CMonster*)pObject)->AddToAggroed( GetID() );
 	}
 
@@ -5495,7 +5423,7 @@ void CPlayer::LogOnRelease()
 	}
 }
 
-// 100624 ONS HPÂ¾Ã·ÂµÂ¥ÃÃÃÂ®Â°Ã¼Â·Ã ÃÂ³Â¸Â® ÃÃÂ°Â¡
+// 100624 ONS HP업데이트관련 처리 추가
 void CPlayer::AddLifeRecoverTime( const YYRECOVER_TIME& recoverTime )
 {
 	m_YYLifeRecoverTimeQueue.push( recoverTime );
@@ -5514,7 +5442,7 @@ void CPlayer::UpdateLife()
 	{
 		if( FALSE == m_YYLifeRecoverTimeQueue.empty() )
 		{
-			// ÃÃÂ³ÂªÂ¾Â¿ ÃÂ¥Â¿Â¡Â¼Â­ Â²Â¨Â³Â»Â¼Â­ Â¾Ã·ÂµÂ¥ÃÃÃÂ®Â½ÃÃÂ°ÂµÂµÂ·Ã ÃÃÂ´Ã.
+			// 하나씩 큐에서 꺼내서 업데이트시키도록 한다.
 			m_YYLifeRecoverTime = m_YYLifeRecoverTimeQueue.front();
 			m_YYLifeRecoverTimeQueue.pop();
 		}
@@ -5524,7 +5452,7 @@ void CPlayer::UpdateLife()
 	{
 		if( m_YYLifeRecoverTime.lastCheckTime < gCurTime )
 		{
-			// HPÂ°Â¡ Â²ÃÃÃ·Â¸Ã© ÃÂ¥Â¿Â¡ ÃÃºÃÃ¥ÂµÃ ÂµÂ¥ÃÃÃÃÂ¸Â¦ Â¸Ã°ÂµÃ Â»Ã¨ÃÂ¦ÃÃÂ´Ã.
+			// HP가 꽉차면 큐에 저장된 데이터를 모두 삭제한다.
 			if( GetMaxLife() <= GetLife() )
 			{
 				while( !m_YYLifeRecoverTimeQueue.empty() )
@@ -5535,7 +5463,7 @@ void CPlayer::UpdateLife()
 				return;
 			}
 
-			// HPÂ¾Ã·ÂµÂ¥ÃÃÃÂ®ÃÃÂ´Ã.
+			// HP업데이트한다.
 			m_YYLifeRecoverTime.lastCheckTime = gCurTime + m_YYLifeRecoverTime.recoverDelayTime;
 			AddLife( m_YYLifeRecoverTime.recoverUnitAmout, NULL );
 			--m_YYLifeRecoverTime.count;
@@ -5543,7 +5471,7 @@ void CPlayer::UpdateLife()
 	}
 }
 
-// 100624 ONS MPÂ¾Ã·ÂµÂ¥ÃÃÃÂ®Â°Ã¼Â·Ã ÃÂ³Â¸Â® ÃÃÂ°Â¡
+// 100624 ONS MP업데이트관련 처리 추가
 void CPlayer::AddManaRecoverTime( const YYRECOVER_TIME& recoverTime )
 {
 	m_YYManaRecoverTimeQueue.push( recoverTime );
@@ -5588,20 +5516,21 @@ void CPlayer::UpdateMana()
 	}
 }
 
-// 100611 ONS ÃÂ¤ÃÃÂ±ÃÃÃ¶Â»Ã³ÃÃ Â¿Â©ÂºÃ ÃÃÂ´Ã.
+// 100611 ONS 채팅금지상태 여부 판단.
 BOOL CPlayer::IsForbidChat() const
 {
-
 	__time64_t time = 0;
 	_time64( &time );
+
 	if( time > ForbidChatTime || 0 == ForbidChatTime )
 		return FALSE;
 
 	return TRUE;
 }
 
+#ifdef _MAP00_
 void	CPlayer::SetGuildName( char* GuildName ) { SafeStrCpy(m_HeroCharacterInfo.GuildName, GuildName, _countof(m_HeroCharacterInfo.GuildName)); }
-
+#endif
 
 // --- skr 12/01/2020
 void CPlayer::UpdateRelife()
