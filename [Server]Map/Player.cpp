@@ -262,7 +262,7 @@ void CPlayer::InitClearData()
 	
 // --- skr 22012020
 	RelifeON = FALSE;
-	RelifeTimer = 0;
+	RelifeStartTime = 0;
 }
 
 BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObjectInfo)
@@ -341,7 +341,7 @@ BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObject
 
 // --- skr 22012020
 	RelifeON = FALSE;
-	RelifeTimer = 0;
+	RelifeStartTime = 0;
 
 	return TRUE;
 }
