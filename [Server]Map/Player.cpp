@@ -132,6 +132,7 @@ m_SkillTree(new cSkillTree)
  	RelifeON = FALSE;
 	RelifeTimer = 0;
   RelifeStartTime = 0;
+  currentwarehouseset = 0;
 }
 
 CPlayer::~CPlayer()
@@ -263,6 +264,7 @@ void CPlayer::InitClearData()
 // --- skr 22012020
 	RelifeON = FALSE;
 	RelifeStartTime = 0;
+	currentwarehouseset = 0;
 }
 
 BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObjectInfo)
@@ -342,6 +344,7 @@ BOOL CPlayer::Init(EObjectKind kind,DWORD AgentNum, BASEOBJECT_INFO* pBaseObject
 // --- skr 22012020
 	RelifeON = FALSE;
 	RelifeStartTime = 0;
+	currentwarehouseset = 0;
 
 	return TRUE;
 }

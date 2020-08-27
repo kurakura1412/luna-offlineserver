@@ -1051,6 +1051,7 @@ private:
 	BOOL	RelifeON;
 	DWORD	RelifeTimer;
   DWORD	RelifeStartTime;
+  DWORD currentwarehouseset;
 public:
   BOOL IsRelifeON() { return RelifeON;}
   void UpdateRelife();
@@ -1058,6 +1059,9 @@ public:
   void SetRelifeStart();
   BOOL CheckReLifeBuff(cBuffSkillInfo* abuff);
   BOOL CheckReLifeSkill(DWORD abuff);
+  DWORD GetWarehouseSet(){ return currentwarehouseset;}
+  void SetWarehouseSet(DWORD valu){ currentwarehouseset = valu;}
+  
 };
 
 #endif // __PLAYER_H__INCLUDED

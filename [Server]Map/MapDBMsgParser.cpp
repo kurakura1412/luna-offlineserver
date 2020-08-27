@@ -328,7 +328,9 @@ DBMsgFunc g_DBMsgFunc[MaxQuery] =
 	RForbidChatUpdate,
 	RForbidChatLoad,
 	
-	RInvenSort     // ---- skr sorting
+	RInvenSort,     // ---- skr sorting
+	RWarehouseItemInfoSet // --- skr : warehouse 2020agt27
+	
 };
 
 
@@ -2908,7 +2910,6 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 
 		if(NULL == ItemInfo)
 		{
-			//if( !pData->isnextOK() ) break;
 			continue;
 		}
 
@@ -2932,8 +2933,7 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 						eLog_ShopItemUseEnd, pPlayer->GetMoney(eItemTable_Inventory), 0, 0,
 						item.wIconIdx , item.dwDBIdx, item.Position, 0, 
 						item.Durability, pPlayer->GetPlayerExpPoint());
-					//if( !pData->isnextOK() ) break;
-					//else continue;
+					continue;
 				}
 
 				// »ç¿ë±â°£¿¡¼­ ÃÖÃÊ DBInsert°æ°ú ½Ã°£À» »©ÁØ´Ù.
@@ -2963,8 +2963,7 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 					eLog_ShopItemUseEnd, pPlayer->GetMoney(eItemTable_Inventory), 0, 0,
 					item.wIconIdx , item.dwDBIdx, item.Position, 0, 
 					item.Durability, pPlayer->GetPlayerExpPoint());
-				//if( !pData->isnextOK() ) break;
-				//else continue;
+				continue
 			}
 		}
 		else 
@@ -3088,15 +3087,13 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 				item.Durability,
 				0 );
 			ItemDeleteToDB( item.dwDBIdx );
-			//if( !pData->isnextOK() ) break;
-			//else continue;
+			continue;
 		}
 
     itemSlot->InsertItemAbs(
 			pPlayer,
 			item.Position,
 			&item);
-		//if( !pData->isnextOK() ) break;
 	}
 	// for( BYTE i = 0 ; i < 100 ; ++i )
 	if( coun >= MAX_ROW_NUM)
@@ -10295,4 +10292,15 @@ void RInvenSort( LPQUERY pData, LPDBMESSAGE pMessage )
 		msg.dwObjectID	= pPlayer->GetID();
 	}
 	pPlayer->SendMsg(&msg, sizeof(msg));
+}
+// --- skr : warehouse 2020agt27
+void WarehouseItemInfoSet(DWORD CharacterIdx, DWORD UserIdx, DWORD StartDBIdx, 
+	DWORD startpos, DWORD endpos, DWORD numset)
+{
+	sprintf(txt, "EXEC MP_STORAGE_ItemInfo_selector %d, %d, %d, %d", UserIdx, StartDBIdx, startpos, endpos);
+	g_DB.Query(eQueryType_FreeQuery, eWarehouseItemInfoSet, CharacterIdx, txt, numset);
+}
+void RWarehouseItemInfoSet( LPQUERY pData, LPDBMESSAGE pMessage )
+{
+	
 }
