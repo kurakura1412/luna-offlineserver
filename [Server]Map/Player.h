@@ -1061,7 +1061,7 @@ public:
   BOOL CheckReLifeSkill(DWORD abuff);
   DWORD GetWarehouseSet(){ return currentwarehouseset;}
   void SetWarehouseSet(DWORD valu){ currentwarehouseset = valu;}
-  
+  void GetWarehouseStartEnd(DWORD & _start, DWORD & _end);
 };
 
 #endif // __PLAYER_H__INCLUDED

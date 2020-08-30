@@ -85,7 +85,7 @@ void CStorageManager::NetworkMsgParse( BYTE Protocol, void* pMsg )
 // --- skr : warehouse
 	case MP_STORAGE_WAREHOUSE_SYN :
 	{
-		MSG_DWORD pmsg = (MSG_DWORD*)pMsg;
+		MSG_DWORD* pmsg = (MSG_DWORD*)pMsg;
 		CPlayer* pPlayer = (CPlayer*)g_pUserTable->FindUser(pmsg->dwObjectID);
 		if(!pPlayer)	return;
 		ChangeWarehouseSet( pPlayer, (DWORD)pmsg->dwData );
@@ -319,12 +319,15 @@ STORAGELISTINFO* CStorageManager::GetStorageInfo(int i)
 void CStorageManager::ChangeWarehouseSet( CPlayer* pPlayer, DWORD dwdata )
 {
 	ITEMBASE* aItem = NULL;
+	
 	POSTYPE startpos = 0, endpos = 0, i = 0;
+	DWORD dwstartpos = startpos, dwendpos = endpos;
 	DWORD dwnum = (DWORD)pPlayer->GetStorageNum();
 	DWORD currentset = pPlayer->GetWarehouseSet();
 	CItemSlot* pslot = pPlayer->GetSlot( eItemTable_Storage );
 	MSG_DWORD msg;
 	msg.dwData = pPlayer->GetID();
+	msg.Category = MP_STORAGE;
 	if( dwdata > dwnum )
 	{
 		msg.Protocol = MP_STORAGE_WAREHOUSE_NACK;
@@ -337,41 +340,13 @@ void CStorageManager::ChangeWarehouseSet( CPlayer* pPlayer, DWORD dwdata )
 		pPlayer->SendMsg(&msg, sizeof(msg));
 		return;
 	}
-	switch( currentset){
-			case 0:
-			{
-				startpos = TP_STORAGE_START;
-				endpos = TP_STORAGE_END;
-			}
-			break;
-			case 1:
-			{
-				startpos = TP_STORAGE_START_SET1;
-				endpos = TP_STORAGE_END_SET1;
-			}
-			break;
-			case 2:
-			{
-				startpos = TP_STORAGE_START_SET2;
-				endpos = TP_STORAGE_END_SET2;
-			}
-			break;
-			case 3:
-			{
-				startpos = TP_STORAGE_START_SET3;
-				endpos = TP_STORAGE_END_SET3;
-			}
-			break;
-			case 4:
-			{
-				startpos = TP_STORAGE_START_SET4;
-				endpos = TP_STORAGE_END_SET4;
-			}
-			break;
-			default: break;
-	}
+	pPlayer->SetWarehouseSet(dwdata);
+	pPlayer->GetWarehouseStartEnd( dwstartpos, dwendpos );
+	startpos = dwstartpos;
+	endpos = dwendpos;
 	if ( startpos == 0 || endpos == 0)
 	{
+		pPlayer->SetWarehouseSet(currentset);
 		msg.Protocol = MP_STORAGE_WAREHOUSE_NACK;
 		pPlayer->SendMsg(&msg, sizeof(msg));
 		return;
@@ -388,5 +363,5 @@ void CStorageManager::ChangeWarehouseSet( CPlayer* pPlayer, DWORD dwdata )
 		}
 		pslot->ClearItemBaseAndSlotInfo( i );
 	}
-	WarehouseItemInfoSet( 0, pPlayer->GetID(), 0, startpos - 1,endpos, dwdata );
+	WarehouseItemInfoSet( pPlayer->GetID(), pPlayer->GetUserID(), 0, startpos - 1,endpos, dwdata );
 }

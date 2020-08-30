@@ -5584,3 +5584,44 @@ BOOL CPlayer::CheckReLifeSkill(DWORD abuff)
   }
   return ret;
 }
+// --- skr : warehouse 2020agt28
+void CPlayer::GetWarehouseStartEnd(DWORD & _start, DWORD & _end)
+{
+	DWORD startpos = 0, endpos = 0;
+	switch( currentwarehouseset ){
+		case 0:
+		{
+			startpos = TP_STORAGE_START;
+			endpos = TP_STORAGE_END;
+		}
+		break;
+		case 1:
+		{
+			startpos = TP_STORAGE_START_SET1;
+			endpos = TP_STORAGE_END_SET1;
+		}
+		break;
+		case 2:
+		{
+			startpos = TP_STORAGE_START_SET2;
+			endpos = TP_STORAGE_END_SET2;
+		}
+		break;
+		case 3:
+		{
+			startpos = TP_STORAGE_START_SET3;
+			endpos = TP_STORAGE_END_SET3;
+		}
+		break;
+		case 4:
+		{
+			startpos = TP_STORAGE_START_SET4;
+			endpos = TP_STORAGE_END_SET4;
+		}
+		break;
+		default: break;
+	}
+	_start = startpos;
+	_end = endpos;
+	return;
+}

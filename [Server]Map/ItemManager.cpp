@@ -2990,7 +2990,7 @@ eItemUse_Err CItemManager::UseItem(CPlayer* pPlayer, POSTYPE TargetPos, DWORD wI
 			}
 		}
 		break;
-	}
+
 // --- skr : warehouse
 	case ITEM_KIND_EXTEND_STORAGE_SET1 :
 	{
@@ -3028,6 +3028,7 @@ eItemUse_Err CItemManager::UseItem(CPlayer* pPlayer, POSTYPE TargetPos, DWORD wI
 		}
 	}
 	break;
+	}
 	
 	if(0 == usedItem.Durability && 0 == pItemInfo->dwUseTime)
 	{

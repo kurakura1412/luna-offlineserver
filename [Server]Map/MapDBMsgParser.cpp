@@ -862,8 +862,16 @@ void CharacterStorageItemInfo(DWORD CharacterIdx,DWORD UserIdx, DWORD StartDBIdx
 	//	char txt[128];
 	//sprintf(txt, "EXEC %s %d, %d", STORED_STORAGE_ITEMINFO, CharacterIdx, StartDBIdx);
 	//g_DB.Query(eQueryType_FreeQuery, eCharacterStorageItemInfo, CharacterIdx, txt);
-	sprintf(txt, "EXEC %s %d, %d", STORED_STORAGE_ITEMINFO, UserIdx, StartDBIdx);
-	g_DB.Query(eQueryType_FreeQuery, eCharacterStorageItemInfo, CharacterIdx, txt, CharacterIdx);
+	//sprintf(txt, "EXEC %s %d, %d", STORED_STORAGE_ITEMINFO, UserIdx, StartDBIdx);
+	//g_DB.Query(eQueryType_FreeQuery, eCharacterStorageItemInfo, CharacterIdx, txt, CharacterIdx);
+// --- skr : warehouse 2020agt28
+	CPlayer* pPlayer = (CPlayer *)g_pUserTable->FindUser( CharacterIdx );
+	DWORD startset = 0, endset = 0,setnum = 0;
+	if( pPlayer ){
+		setnum = pPlayer->GetWarehouseSet();
+		pPlayer->GetWarehouseStartEnd( startset, endset );
+	}
+	WarehouseItemInfoSet(CharacterIdx, UserIdx, StartDBIdx, startset - 1, endset, setnum );
 }
 
 void FriendNotifyLogouttoClient(DWORD PlayerID)
@@ -2963,7 +2971,7 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 					eLog_ShopItemUseEnd, pPlayer->GetMoney(eItemTable_Inventory), 0, 0,
 					item.wIconIdx , item.dwDBIdx, item.Position, 0, 
 					item.Durability, pPlayer->GetPlayerExpPoint());
-				continue
+				continue;
 			}
 		}
 		else 
@@ -3100,11 +3108,18 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 	{
 		//const QUERYST&	record		= pData[ MAX_ROW_NUM - 1 ];
 		const DWORD		itemDbIndex = dwitemDbIndex;//atoi( ( char* )record.Data[ 1 ] );
-
-		CharacterStorageItemInfo(
-			playerIndex,
-			pPlayer->GetUserID(),
-			itemDbIndex );
+		// --- skr : warehouse 2020agt28
+		//CharacterStorageItemInfo(
+		//	playerIndex,
+		//	pPlayer->GetUserID(),
+		//	itemDbIndex );
+		DWORD warehouseset = pPlayer->GetWarehouseSet();
+		DWORD startset = 0, endset = 0;
+		pPlayer->GetWarehouseStartEnd( startset, endset );
+		//startset += coun;
+		
+		WarehouseItemInfoSet( playerIndex, pPlayer->GetUserID(), itemDbIndex,startset,endset, warehouseset );
+		
 	}
 	else //¡Ë¡ÍU A¡§¡Ë¡§ui¡Ë?8e A¢®©­¡ËOoAI¡§u¨Ï¡Ì¡§¢®¡Ëc¡Ë?¡Ë¢ç ¡§¡þ¡Ë¡þ¨Ï©ª¢®iAU. 
 	{
@@ -10297,10 +10312,18 @@ void RInvenSort( LPQUERY pData, LPDBMESSAGE pMessage )
 void WarehouseItemInfoSet(DWORD CharacterIdx, DWORD UserIdx, DWORD StartDBIdx, 
 	DWORD startpos, DWORD endpos, DWORD numset)
 {
+	/*
+	CPlayer* const pPlayer = (CPlayer*)g_pUserTable->FindUser( pMessage->dwID );
+	if( !pPlayer )
+	{
+		return;		
+	}
+	DWORD warehousenum = pPlayer->GetWarehouseSet();
+	//*/
 	sprintf(txt, "EXEC MP_STORAGE_ItemInfo_selector %d, %d, %d, %d", UserIdx, StartDBIdx, startpos, endpos);
 	g_DB.Query(eQueryType_FreeQuery, eWarehouseItemInfoSet, CharacterIdx, txt, numset);
 }
 void RWarehouseItemInfoSet( LPQUERY pData, LPDBMESSAGE pMessage )
 {
-	
+	RCharacterStorageItemInfo( pData, pMessage );
 }
