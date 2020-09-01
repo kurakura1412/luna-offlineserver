@@ -19,7 +19,8 @@
 #include "GameIn.h"
 #include "../Input/Mouse.h"
 #include "QuickManager.h"
-
+// --- skr : warehouse 2020sept1
+#include "StorageManager.h"
 
 CStorageDialog::CStorageDialog()
 {
@@ -35,8 +36,6 @@ CStorageDialog::CStorageDialog()
 		sizeof(mButtonSize));
 
 	m_type = WT_STORAGEDLG;
-// --- skr : add set 2020/8/26
-	currentSet = 0;
 	
 	LoadStorageListInfo();
 }
@@ -192,15 +191,99 @@ void CStorageDialog::SetActiveStorageMode(int mode,BOOL bActive)
 
 void CStorageDialog::RefreshDlg()
 {
+	// --- skr : warehouse 2020sept1
+	int i = 0;
+	int storenum = HERO->GetStorageNum();
+	int storenumA = storenum;
+	int warehouseset = STORAGEMGR->GetWarehouseSet();
+	if ( storenum > MAX_STORAGELIST_NUM ){
+		switch( warehouseset ){
+			case 4: {
+				if( storenum < MAX_STORAGELIST_NUMSET3) {storenum = 0;}
+				else if( storenum < MAX_STORAGELIST_NUMSET4){ storenum = (storenumA % MAX_STORAGELIST_NUM); }
+				else { storenum = MAX_STORAGELIST_NUM; }
+					}
+				break;
+			case 3: {
+				if( storenum < MAX_STORAGELIST_NUMSET2) {storenum = 0;}
+				else if( storenum < MAX_STORAGELIST_NUMSET3){ storenum = (storenumA % MAX_STORAGELIST_NUM); }
+				else { storenum = MAX_STORAGELIST_NUM; }
+					}
+				break;
+			case 2: {
+				if( storenum < MAX_STORAGELIST_NUMSET1) {storenum = 0;}
+				else if( storenum < MAX_STORAGELIST_NUMSET2){ storenum = (storenumA % MAX_STORAGELIST_NUM); }
+				else { storenum = MAX_STORAGELIST_NUM; }
+					}
+				break;
+			case 1: {
+				if( storenum < MAX_STORAGELIST_NUM) {storenum = 0;}
+				else if( storenum < MAX_STORAGELIST_NUMSET1){ storenum = (storenumA % MAX_STORAGELIST_NUM); }
+				else { storenum = MAX_STORAGELIST_NUM; }
+					}
+				break;
+			case 0: {
+				if( storenum < MAX_STORAGELIST_NUM ){ storenum = (storenumA % MAX_STORAGELIST_NUM); }
+				else { storenum = MAX_STORAGELIST_NUM; }
+					}
+				break;
+			default: { storenum = MAX_STORAGELIST_NUM; }
+				break;
+		}
+
+		
+	}
+	cButton * pbutt = NULL,* pbutt1 = NULL,* pbutt2 = NULL,* pbutt3 = NULL,* pbutt4 = NULL;
 	if(m_CurStorageMode != eStorageMode_StorageListInfo)
 	{
-		for(int i=0; i<HERO->GetStorageNum(); ++i)
+		//for(int i=0; i<HERO->GetStorageNum(); ++i){
+		for( i=0; i< storenum; ++i){
 			m_pStorageBtn[i]->SetActive(TRUE);
+		}
+		if( storenum < MAX_STORAGELIST_NUM ){
+			for(; i< MAX_STORAGELIST_NUM; ++i){
+				m_pStorageBtn[i]->SetActive(FALSE);
+			}
+		}
+		// --- skr : warehouse 2020agt31
+		pbutt4 = (cButton*)GetWindowForID( 9004 );
+		pbutt3 = (cButton*)GetWindowForID( 9003 );
+		pbutt2 = (cButton*)GetWindowForID( 9002 );
+		pbutt1 = (cButton*)GetWindowForID( 9001 );
+		pbutt  = (cButton*)GetWindowForID( 9000 );
+		if(pbutt4){
+			if( storenumA > MAX_STORAGELIST_NUMSET3 ){pbutt4->SetActive(TRUE);} 
+			else { pbutt4->SetActive(FALSE);}
+		}
+		if(pbutt3){
+			if( storenumA > MAX_STORAGELIST_NUMSET2 ){pbutt3->SetActive(TRUE);}
+			else { pbutt3->SetActive(FALSE);}
+		}
+		if(pbutt2){
+			if( storenumA > MAX_STORAGELIST_NUMSET1 ){pbutt2->SetActive(TRUE);}
+			else { pbutt2->SetActive(FALSE);}
+		}
+		if(pbutt1){
+			if( storenumA > MAX_STORAGELIST_NUM ){pbutt1->SetActive(TRUE);}
+			else { pbutt1->SetActive(FALSE);}
+		}
+		if(pbutt){
+			if( storenumA > 0 ){pbutt->SetActive(TRUE);}
+			else { pbutt->SetActive(FALSE);}
+		}
+		
 	}
 	else
 	{
-		for(int i=0; i<MAX_STORAGELIST_NUM; ++i)
+		for(int i=0; i<MAX_STORAGELIST_NUM; ++i){
 			m_pStorageBtn[i]->SetActive(FALSE);
+		}
+		for( int i = 9000; i < 9005; i++ ){
+			pbutt = (cButton*)GetWindowForID( i );
+			if( pbutt){
+				pbutt->SetActive(FALSE);
+			}
+		}
 	}
 
 }
@@ -492,4 +575,22 @@ DWORD CStorageDialog::ActionEvent( CMouse* mouseInfo )
 	}
 
 	return we;
+}
+
+// --- skr : warehouse 2020sept1
+void CStorageDialog::DeleteAllStorageItemEX()
+{
+	SetActiveStorageMode(m_CurStorageMode, FALSE ); // icon ???
+	DeleteAllStorageItem();
+	/*
+	for(POSTYPE i=0; i<TABCELL_STORAGE_NUM; ++ i)
+	{
+		for(int j=0; j<MAX_STORAGELIST_NUM; ++j)
+		{
+			m_StorageItemDlg[j]->DeleteItem(
+				POSTYPE(TP_STORAGE_START+i+j*TABCELL_STORAGE_NUM), j,
+				NULL);
+		}
+	}
+//*/
 }

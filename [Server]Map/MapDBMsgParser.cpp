@@ -2874,7 +2874,10 @@ void RCharacterStorageInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 
 void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 {
+	BOOL fix_pos = FALSE;
 	DWORD coun = 0, dwitemDbIndex = 0;
+	DWORD startpos = 0, endpos = 0 ;
+	POSTYPE tItemPos = 0,gapPos = 0;
 	//if( !pData->isnextOK() ) return;  // bug here. no respon if no item in warehouse
 	const DWORD playerIndex = pMessage->dwID;
 	CPlayer*	pPlayer		= (CPlayer*)g_pUserTable->FindUser( playerIndex );
@@ -2892,7 +2895,14 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 	{
 		return;
 	}
-	
+// --- skr : warehouse 2020agt31
+	pPlayer->GetWarehouseStartEnd( startpos, endpos);
+	if ( startpos != TP_STORAGE_START ){
+		fix_pos = TRUE;
+	}
+	gapPos = startpos - TP_STORAGE_START_SET1;
+	//gapPos = TP_STORAGE_START_SET1;
+
 	//for( BYTE i = 0 ; i < pMessage->dwResult ; ++i )
 	for( BYTE i = 0 ; i < MAX_ROW_NUM ; ++i )
 	{
@@ -2911,6 +2921,9 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 		dwitemDbIndex = item.dwDBIdx;
 		item.wIconIdx 			= pData->getDataINT(2);//atoi((char*)pData[i].Data[2]);
 		item.Position 			= pData->getDataINT(3);//POSTYPE( atoi((char*)pData[i].Data[3]));
+		if( fix_pos ){
+			item.Position = (( item.Position - gapPos - TP_STORAGE_START_SET1  ) + TP_STORAGE_START );
+		}
 		item.QuickPosition 	= pData->getDataINT(4);//POSTYPE( atoi((char*)pData[i].Data[4]));
 		item.Durability			= pData->getDataINT(5);//atoi((char*)pData[i].Data[5]);
 		
@@ -3098,10 +3111,13 @@ void RCharacterStorageItemInfo(LPQUERY pData, LPDBMESSAGE pMessage)
 			continue;
 		}
 
+
     itemSlot->InsertItemAbs(
 			pPlayer,
 			item.Position,
 			&item);
+
+
 	}
 	// for( BYTE i = 0 ; i < 100 ; ++i )
 	if( coun >= MAX_ROW_NUM)

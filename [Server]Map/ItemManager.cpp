@@ -8072,7 +8072,20 @@ BOOL CItemManager::ItemMoveUpdateToDBbyTable(CPlayer* pPlayer, DWORD dwfromDBIdx
 	}
 	else if(TP_STORAGE_START <= frompos && frompos < TP_STORAGE_END)
 	{
-		ItemMoveStorageUpdateToDB(pPlayer->GetID(), pPlayer->GetUserID(), dwfromDBIdx, frompos, dwtoDBIdx, topos);
+		//ItemMoveStorageUpdateToDB(pPlayer->GetID(), pPlayer->GetUserID(), dwfromDBIdx, frompos, dwtoDBIdx, topos);
+	// --- skr : warehouse 2020agt31
+		DWORD startpos = 0, endpos = 0;
+		POSTYPE tItemPosFrom = 0, gapPos = 0,tItemPosTo = 0;
+		pPlayer->GetWarehouseStartEnd( startpos, endpos );
+		if( startpos != TP_STORAGE_START ){
+			gapPos = startpos - TP_STORAGE_START_SET1;
+			tItemPosFrom = frompos + gapPos + TP_STORAGE_START_SET1 - TP_STORAGE_START ;
+			tItemPosTo = topos + gapPos + TP_STORAGE_START_SET1 - TP_STORAGE_START ;
+			ItemMoveStorageUpdateToDB(pPlayer->GetID(), pPlayer->GetUserID(), dwfromDBIdx, tItemPosFrom, dwtoDBIdx, tItemPosTo);
+		}
+		else{
+			ItemMoveStorageUpdateToDB(pPlayer->GetID(), pPlayer->GetUserID(), dwfromDBIdx, frompos, dwtoDBIdx, topos);
+		}
 	}
 	else
 	{

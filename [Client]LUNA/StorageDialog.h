@@ -98,6 +98,8 @@ public:
 
 	// 070326 LYW --- StorageDialog : Add function to active or not.
 	void ShowStorageDlg( BOOL val ) ;
+	// --- skr : warehouse 2020sept1 : try delete item icon as well.
+	void DeleteAllStorageItemEX();
 
 };
 

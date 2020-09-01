@@ -30,9 +30,10 @@ public:
 // --- skr : add set 2020/8/26
 private:
 	int currentSet;
+	int tempSet;
 public:
 	void CustomEventEX( LONG lId, void * p, DWORD we);
-	void SetWarehouse( int valu ){currentSet = valu};
+	void SetWarehouse( int valu ){currentSet = valu;};
 	int GetWarehouseSet() { return currentSet; }
 };
 EXTERNGLOBALTON(CStorageManager);

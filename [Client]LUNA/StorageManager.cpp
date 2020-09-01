@@ -28,6 +28,8 @@
 GLOBALTON(CStorageManager);
 CStorageManager::CStorageManager()
 {
+	currentSet = 0;
+	tempSet = 0;
 }
 
 CStorageManager::~CStorageManager()
@@ -90,7 +92,8 @@ void CStorageManager::NetworkMsgParse(BYTE Protocol,void* pMsg)
 // --- skr : add set 2020/8/26
 	case MP_STORAGE_WAREHOUSE_ACK:
 		{
-		
+			GAMEIN->GetStorageDialog()->DeleteAllStorageItemEX();
+			currentSet = tempSet;
 		}
 		break;
 	case MP_STORAGE_WAREHOUSE_NACK:
@@ -205,9 +208,10 @@ void CStorageManager::OnPutOutMoneyStorageOk( LONG iId, void* p, DWORD param1, v
 }
 
 // --- skr : add set 2020/8/26
-void CStorageDialog::CustomEventEX( LONG lId, void * p, DWORD we)
+void CStorageManager::CustomEventEX( LONG lId, void * p, DWORD we)
 {
 	int newset = lId - 9000;
+
 	
 	if( currentSet == newset ){
 		return;
@@ -219,6 +223,8 @@ void CStorageDialog::CustomEventEX( LONG lId, void * p, DWORD we)
 	msg.Protocol = MP_STORAGE_WAREHOUSE_SYN;
 	msg.dwObjectID = HEROID;
 	msg.dwData = newset;
+	
+	tempSet = newset;
 	
 	NETWORK->Send(&msg, sizeof(msg));
 	

@@ -321,7 +321,7 @@ void CStorageManager::ChangeWarehouseSet( CPlayer* pPlayer, DWORD dwdata )
 	ITEMBASE* aItem = NULL;
 	
 	POSTYPE startpos = 0, endpos = 0, i = 0;
-	DWORD dwstartpos = startpos, dwendpos = endpos;
+	DWORD dwstartpos = startpos, dwendpos = endpos, ii = i;
 	DWORD dwnum = (DWORD)pPlayer->GetStorageNum();
 	DWORD currentset = pPlayer->GetWarehouseSet();
 	CItemSlot* pslot = pPlayer->GetSlot( eItemTable_Storage );
@@ -351,17 +351,28 @@ void CStorageManager::ChangeWarehouseSet( CPlayer* pPlayer, DWORD dwdata )
 		pPlayer->SendMsg(&msg, sizeof(msg));
 		return;
 	}
-		
+	
+	
+	
 	msg.Protocol = MP_STORAGE_WAREHOUSE_ACK;
 	pPlayer->SendMsg(&msg, sizeof(msg));
 	
-	for( i = startpos; i < endpos; i++)
+	//pPlayer->SetWarehouseSet(currentset);
+	//pPlayer->GetWarehouseStartEnd( dwstartpos, dwendpos );
+	for( ii = TP_STORAGE_START; ii < TP_STORAGE_END; ii++)
 	{
-		aItem = pslot->GetItemInfoAbs( i );
-		if( aItem != NULL ){
+		if( pslot->IsEmpty( ii )){
+			continue;
+		}
+		aItem = pslot->GetItemInfoAbs( ii );
+		if( aItem != NULL && (0 != ITEMMGR->GetOption(*aItem).mItemDbIndex  )){
 			ITEMMGR->RemoveOption( aItem->dwDBIdx );
 		}
-		pslot->ClearItemBaseAndSlotInfo( i );
+		pslot->ClearItemBaseAndSlotInfo( ii );
 	}
+	//pPlayer->SetWarehouseSet(dwdata);
+	//pPlayer->GetWarehouseStartEnd( dwstartpos, dwendpos );
+	
+	
 	WarehouseItemInfoSet( pPlayer->GetID(), pPlayer->GetUserID(), 0, startpos - 1,endpos, dwdata );
 }
